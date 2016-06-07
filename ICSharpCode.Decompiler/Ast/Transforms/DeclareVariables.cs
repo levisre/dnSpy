@@ -16,22 +16,20 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
+using dnSpy.Decompiler.Shared;
 using ICSharpCode.Decompiler.ILAst;
-using ICSharpCode.NRefactory;
 using ICSharpCode.NRefactory.CSharp;
 using ICSharpCode.NRefactory.CSharp.Analysis;
 
-namespace ICSharpCode.Decompiler.Ast.Transforms
-{
+namespace ICSharpCode.Decompiler.Ast.Transforms {
 	/// <summary>
 	/// Moves variable declarations to improved positions.
 	/// </summary>
-	public class DeclareVariables : IAstTransform
+	public class DeclareVariables : IAstTransformPoolObject
 	{
 		sealed class VariableToDeclare
 		{
@@ -43,14 +41,22 @@ namespace ICSharpCode.Decompiler.Ast.Transforms
 			public Statement InsertionPoint;
 		}
 		
-		readonly CancellationToken cancellationToken;
-		List<VariableToDeclare> variablesToDeclare = new List<VariableToDeclare>();
+		DecompilerContext context;
+		CancellationToken cancellationToken;
+		readonly List<VariableToDeclare> variablesToDeclare = new List<VariableToDeclare>();
 		
 		public DeclareVariables(DecompilerContext context)
 		{
-			this.cancellationToken = context.CancellationToken;
+			Reset(context);
 		}
-		
+
+		public void Reset(DecompilerContext context)
+		{
+			this.context = context;
+			this.cancellationToken = context.CancellationToken;
+			this.variablesToDeclare.Clear();
+		}
+
 		public void Run(AstNode node)
 		{
 			Run(node, null);
@@ -60,7 +66,7 @@ namespace ICSharpCode.Decompiler.Ast.Transforms
 			foreach (var v in variablesToDeclare) {
 				if (v.ReplacedAssignment == null) {
 					BlockStatement block = (BlockStatement)v.InsertionPoint.Parent;
-					var decl = new VariableDeclarationStatement(v.ILVariable != null && v.ILVariable.IsParameter ? TextTokenType.Parameter : TextTokenType.Local, (AstType)v.Type.Clone(), v.Name);
+					var decl = new VariableDeclarationStatement(v.ILVariable != null && v.ILVariable.IsParameter ? TextTokenKind.Parameter : TextTokenKind.Local, (AstType)v.Type.Clone(), v.Name);
 					if (v.ILVariable != null)
 						decl.Variables.Single().AddAnnotation(v.ILVariable);
 					block.Statements.InsertBefore(
@@ -73,7 +79,7 @@ namespace ICSharpCode.Decompiler.Ast.Transforms
 				if (v.ReplacedAssignment != null) {
 					// We clone the right expression so that it doesn't get removed from the old ExpressionStatement,
 					// which might be still in use by the definite assignment graph.
-					VariableInitializer initializer = new VariableInitializer(v.ILVariable != null && v.ILVariable.IsParameter ? TextTokenType.Parameter : TextTokenType.Local, v.Name, v.ReplacedAssignment.Right.Detach()).CopyAnnotationsFrom(v.ReplacedAssignment).WithAnnotation(v.ILVariable);
+					VariableInitializer initializer = new VariableInitializer(v.ILVariable != null && v.ILVariable.IsParameter ? TextTokenKind.Parameter : TextTokenKind.Local, v.Name, v.ReplacedAssignment.Right.Detach()).CopyAnnotationsFrom(v.ReplacedAssignment).WithAnnotation(v.ILVariable);
 					VariableDeclarationStatement varDecl = new VariableDeclarationStatement {
 						Type = (AstType)v.Type.Clone(),
 						Variables = { initializer }
@@ -89,7 +95,7 @@ namespace ICSharpCode.Decompiler.Ast.Transforms
 					}
 				}
 			}
-			variablesToDeclare = null;
+			variablesToDeclare.Clear();
 		}
 		
 		void Run(AstNode node, DefiniteAssignmentAnalysis daa)

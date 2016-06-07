@@ -1,13 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using System.Linq;
 using ICSharpCode.NRefactory.CSharp;
 
-namespace ICSharpCode.Decompiler.Ast.Transforms
-{
-	class FlattenSwitchBlocks : IAstTransform
+namespace ICSharpCode.Decompiler.Ast.Transforms {
+	class FlattenSwitchBlocks : IAstTransformPoolObject
 	{
+		public void Reset(DecompilerContext context)
+		{
+		}
+
 		public void Run(AstNode compilationUnit)
 		{
 			foreach (var switchSection in compilationUnit.Descendants.OfType<SwitchSection>())

@@ -20,20 +20,18 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Linq;
 using System.Threading;
 
 using ICSharpCode.NRefactory.Utils;
 
-namespace ICSharpCode.Decompiler.FlowAnalysis
-{
+namespace ICSharpCode.Decompiler.FlowAnalysis {
 	/// <summary>
 	/// Contains the control flow graph.
 	/// </summary>
 	/// <remarks>Use ControlFlowGraph builder to create instances of the ControlFlowGraph.</remarks>
 	public sealed class ControlFlowGraph
 	{
-		readonly ReadOnlyCollection<ControlFlowNode> nodes;
+		readonly List<ControlFlowNode> nodes;
 		
 		public ControlFlowNode EntryPoint {
 			get { return nodes[0]; }
@@ -47,16 +45,13 @@ namespace ICSharpCode.Decompiler.FlowAnalysis
 			get { return nodes[2]; }
 		}
 		
-		public ReadOnlyCollection<ControlFlowNode> Nodes {
+		public List<ControlFlowNode> Nodes {
 			get { return nodes; }
 		}
 		
-		internal ControlFlowGraph(ControlFlowNode[] nodes)
+		internal ControlFlowGraph()
 		{
-			this.nodes = new ReadOnlyCollection<ControlFlowNode>(nodes);
-			Debug.Assert(EntryPoint.NodeType == ControlFlowNodeType.EntryPoint);
-			Debug.Assert(RegularExit.NodeType == ControlFlowNodeType.RegularExit);
-			Debug.Assert(ExceptionalExit.NodeType == ControlFlowNodeType.ExceptionalExit);
+			this.nodes = new List<ControlFlowNode>();
 		}
 		
 		public GraphVizGraph ExportGraph()
@@ -120,9 +115,19 @@ namespace ICSharpCode.Decompiler.FlowAnalysis
 					b => b.Successors,
 					b => {
 						if (b != EntryPoint) {
-							ControlFlowNode newIdom = b.Predecessors.First(block => block.Visited && block != b);
+							ControlFlowNode newIdom = null;
+							for (int i = 0; i < b.Incoming.Count; i++) {
+								var block = b.Incoming[i].Source;
+								if (block.Visited && block != b) {
+									newIdom = block;
+									break;
+								}
+							}
+							if (newIdom == null)
+								throw new InvalidOperationException();
 							// for all other predecessors p of b
-							foreach (ControlFlowNode p in b.Predecessors) {
+							for (int i = 0; i < b.Incoming.Count; i++) {
+								var p = b.Incoming[i].Source;
 								if (p != b && p.ImmediateDominator != null) {
 									newIdom = FindCommonDominator(p, newIdom);
 								}
@@ -140,15 +145,16 @@ namespace ICSharpCode.Decompiler.FlowAnalysis
 					node.ImmediateDominator.DominatorTreeChildren.Add(node);
 			}
 		}
-		
-		static ControlFlowNode FindCommonDominator(ControlFlowNode b1, ControlFlowNode b2)
+
+		readonly HashSet<ControlFlowNode> FindCommonDominator_path1 = new HashSet<ControlFlowNode>();
+		ControlFlowNode FindCommonDominator(ControlFlowNode b1, ControlFlowNode b2)
 		{
 			// Here we could use the postorder numbers to get rid of the hashset, see "A Simple, Fast Dominance Algorithm"
-			HashSet<ControlFlowNode> path1 = new HashSet<ControlFlowNode>();
-			while (b1 != null && path1.Add(b1))
+			FindCommonDominator_path1.Clear();
+			while (b1 != null && FindCommonDominator_path1.Add(b1))
 				b1 = b1.ImmediateDominator;
 			while (b2 != null) {
-				if (path1.Contains(b2))
+				if (FindCommonDominator_path1.Contains(b2))
 					return b2;
 				else
 					b2 = b2.ImmediateDominator;
@@ -170,7 +176,8 @@ namespace ICSharpCode.Decompiler.FlowAnalysis
 					//logger.WriteLine("Calculating dominance frontier for " + n.Name);
 					n.DominanceFrontier = new HashSet<ControlFlowNode>();
 					// DF_local computation
-					foreach (ControlFlowNode succ in n.Successors) {
+					for (int i = 0; i < n.Outgoing.Count; i++) {
+						var succ = n.Outgoing[i].Target;
 						if (succ.ImmediateDominator != n) {
 							//logger.WriteLine("  local: " + succ.Name);
 							n.DominanceFrontier.Add(succ);

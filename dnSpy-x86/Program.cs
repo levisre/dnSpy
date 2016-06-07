@@ -1,5 +1,5 @@
 ﻿/*
-    Copyright (C) 2014-2015 de4dot@gmail.com
+    Copyright (C) 2014-2016 de4dot@gmail.com
 
     This file is part of dnSpy
 
@@ -19,14 +19,11 @@
 
 using System;
 
-namespace dnSpy_x86
-{
-	class Program
-	{
+namespace dnSpy_x86 {
+	static class Program {
 		[STAThread]
-		static void Main()
-		{
-			ICSharpCode.ILSpy.StartUpClass.Main();
+		static void Main() {
+			dnSpy.MainApp.StartUpClass.Main();
 		}
 	}
 }

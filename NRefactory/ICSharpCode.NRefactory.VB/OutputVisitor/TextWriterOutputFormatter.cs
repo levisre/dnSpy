@@ -2,11 +2,10 @@
 // This code is distributed under MIT X11 license (for details please see \doc\license.txt)
 
 using System;
-using System.Collections.Generic;
 using System.IO;
+using dnSpy.Decompiler.Shared;
 
-namespace ICSharpCode.NRefactory.VB
-{
+namespace ICSharpCode.NRefactory.VB {
 	/// <summary>
 	/// Writes VB code into a TextWriter.
 	/// </summary>
@@ -23,7 +22,7 @@ namespace ICSharpCode.NRefactory.VB
 			this.textWriter = textWriter;
 		}
 		
-		public void WriteIdentifier(string ident, TextTokenType tokenType)
+		public void WriteIdentifier(string ident, TextTokenKind tokenKind)
 		{
 			WriteIndentation();
 			textWriter.Write(ident);
@@ -35,7 +34,7 @@ namespace ICSharpCode.NRefactory.VB
 			textWriter.Write(keyword);
 		}
 		
-		public void WriteToken(string token, TextTokenType tokenType)
+		public void WriteToken(string token, TextTokenKind tokenKind)
 		{
 			WriteIndentation();
 			textWriter.Write(token);
@@ -89,14 +88,6 @@ namespace ICSharpCode.NRefactory.VB
 			else
 				textWriter.Write("'");
 			textWriter.WriteLine(content);
-		}
-		
-		public void MarkFoldStart()
-		{
-		}
-		
-		public void MarkFoldEnd()
-		{
 		}
 
 		public void DebugHidden(object hiddenILRanges)

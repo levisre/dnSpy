@@ -8,7 +8,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
-
+using dnSpy.Decompiler.Shared;
 using ICSharpCode.NRefactory.PatternMatching;
 using ICSharpCode.NRefactory.VB.Ast;
 
@@ -97,7 +97,7 @@ namespace ICSharpCode.NRefactory.VB
 					throw new Exception("Invalid value for VarianceModifier");
 			}
 			
-			WriteIdentifier(typeParameterDeclaration.Name, TextTokenHelper.GetTextTokenType(typeParameterDeclaration.NameToken.Annotation<object>()));
+			WriteIdentifier(typeParameterDeclaration.Name, TextTokenKindUtils.GetTextTokenType(typeParameterDeclaration.NameToken.Annotation<object>()));
 			if (typeParameterDeclaration.Constraints.Any()) {
 				WriteKeyword("As");
 				if (typeParameterDeclaration.Constraints.Count > 1)
@@ -115,7 +115,7 @@ namespace ICSharpCode.NRefactory.VB
 			StartNode(parameterDeclaration);
 			WriteAttributes(parameterDeclaration.Attributes);
 			WriteModifiers(parameterDeclaration.ModifierTokens);
-			WriteIdentifier(parameterDeclaration.Name.Name, TextTokenHelper.GetTextTokenType(parameterDeclaration.Name.Annotation<object>()));
+			WriteIdentifier(parameterDeclaration.Name.Name, TextTokenKindUtils.GetTextTokenType(parameterDeclaration.Name.Annotation<object>()));
 			if (!parameterDeclaration.Type.IsNull) {
 				WriteKeyword("As");
 				parameterDeclaration.Type.AcceptVisitor(this, data);
@@ -237,8 +237,7 @@ namespace ICSharpCode.NRefactory.VB
 			WriteAttributes(typeDeclaration.Attributes);
 			WriteModifiers(typeDeclaration.ModifierTokens);
 			WriteClassTypeKeyword(typeDeclaration);
-			WriteIdentifier(typeDeclaration.Name.Name, TextTokenHelper.GetTextTokenType(typeDeclaration.Name.Annotation<object>()));
-			MarkFoldStart();
+			WriteIdentifier(typeDeclaration.Name.Name, TextTokenKindUtils.GetTextTokenType(typeDeclaration.Name.Annotation<object>()));
 			NewLine();
 			
 			if (!typeDeclaration.InheritsType.IsNull) {
@@ -262,7 +261,6 @@ namespace ICSharpCode.NRefactory.VB
 			
 			WriteKeyword("End");
 			WriteClassTypeKeyword(typeDeclaration);
-			MarkFoldEnd();
 			NewLine();
 			return EndNode(typeDeclaration);
 		}
@@ -299,13 +297,12 @@ namespace ICSharpCode.NRefactory.VB
 			WriteAttributes(enumDeclaration.Attributes);
 			WriteModifiers(enumDeclaration.ModifierTokens);
 			WriteKeyword("Enum");
-			WriteIdentifier(enumDeclaration.Name.Name, TextTokenHelper.GetTextTokenType(enumDeclaration.Name.Annotation<object>()));
+			WriteIdentifier(enumDeclaration.Name.Name, TextTokenKindUtils.GetTextTokenType(enumDeclaration.Name.Annotation<object>()));
 			if (!enumDeclaration.UnderlyingType.IsNull) {
 				Space();
 				WriteKeyword("As");
 				enumDeclaration.UnderlyingType.AcceptVisitor(this, data);
 			}
-			MarkFoldStart();
 			NewLine();
 			
 			Indent();
@@ -316,7 +313,6 @@ namespace ICSharpCode.NRefactory.VB
 			
 			WriteKeyword("End");
 			WriteKeyword("Enum");
-			MarkFoldEnd();
 			NewLine();
 			
 			return EndNode(enumDeclaration);
@@ -327,7 +323,7 @@ namespace ICSharpCode.NRefactory.VB
 			StartNode(enumMemberDeclaration);
 			
 			WriteAttributes(enumMemberDeclaration.Attributes);
-			WriteIdentifier(enumMemberDeclaration.Name.Name, TextTokenHelper.GetTextTokenType(enumMemberDeclaration.Name.Annotation<object>()));
+			WriteIdentifier(enumMemberDeclaration.Name.Name, TextTokenKindUtils.GetTextTokenType(enumMemberDeclaration.Name.Annotation<object>()));
 			
 			if (!enumMemberDeclaration.Value.IsNull) {
 				Space();
@@ -351,7 +347,7 @@ namespace ICSharpCode.NRefactory.VB
 				WriteKeyword("Sub");
 			else
 				WriteKeyword("Function");
-			WriteIdentifier(delegateDeclaration.Name.Name, TextTokenHelper.GetTextTokenType(delegateDeclaration.Name.Annotation<object>()));
+			WriteIdentifier(delegateDeclaration.Name.Name, TextTokenKindUtils.GetTextTokenType(delegateDeclaration.Name.Annotation<object>()));
 			WriteTypeParameters(delegateDeclaration.TypeParameters);
 			WriteCommaSeparatedListInParenthesis(delegateDeclaration.Parameters, false);
 			if (!delegateDeclaration.IsSub) {
@@ -368,7 +364,7 @@ namespace ICSharpCode.NRefactory.VB
 		public object VisitIdentifier(Identifier identifier, object data)
 		{
 			StartNode(identifier);
-			WriteIdentifier(identifier.Name, TextTokenHelper.GetTextTokenType(identifier.Annotation<object>()));
+			WriteIdentifier(identifier.Name, TextTokenKindUtils.GetTextTokenType(identifier.Annotation<object>()));
 			WriteTypeCharacter(identifier.TypeCharacter);
 			return EndNode(identifier);
 		}
@@ -531,7 +527,6 @@ namespace ICSharpCode.NRefactory.VB
 			WriteKeyword("New");
 			DebugEnd(constructorDeclaration, false);
 			WriteCommaSeparatedListInParenthesis(constructorDeclaration.Parameters, false);
-			MarkFoldStart();
 			NewLine();
 			
 			Indent();
@@ -543,7 +538,6 @@ namespace ICSharpCode.NRefactory.VB
 			WriteKeyword("End");
 			WriteKeyword("Sub");
 			DebugEnd(constructorDeclaration, false);
-			MarkFoldEnd();
 			NewLine();
 			
 			return EndNode(constructorDeclaration);
@@ -574,7 +568,6 @@ namespace ICSharpCode.NRefactory.VB
 			WriteHandlesClause(methodDeclaration.HandlesClause);
 			WriteImplementsClause(methodDeclaration.ImplementsClause);
 			if (!methodDeclaration.Body.IsNull) {
-				MarkFoldStart();
 				NewLine();
 				Indent();
 				WriteBlock(methodDeclaration.Body);
@@ -587,7 +580,6 @@ namespace ICSharpCode.NRefactory.VB
 				else
 					WriteKeyword("Function");
 				DebugEnd(methodDeclaration, false);
-				MarkFoldEnd();
 			}
 			NewLine();
 			
@@ -617,7 +609,7 @@ namespace ICSharpCode.NRefactory.VB
 			WriteAttributes(propertyDeclaration.Attributes);
 			WriteModifiers(propertyDeclaration.ModifierTokens);
 			WriteKeyword("Property");
-			WriteIdentifier(propertyDeclaration.Name.Name, TextTokenHelper.GetTextTokenType(propertyDeclaration.Name.Annotation<object>()));
+			WriteIdentifier(propertyDeclaration.Name.Name, TextTokenKindUtils.GetTextTokenType(propertyDeclaration.Name.Annotation<object>()));
 			WriteCommaSeparatedListInParenthesis(propertyDeclaration.Parameters, false);
 			if (!propertyDeclaration.ReturnType.IsNull) {
 				Space();
@@ -629,7 +621,6 @@ namespace ICSharpCode.NRefactory.VB
 			bool needsBody = !propertyDeclaration.Getter.Body.IsNull || !propertyDeclaration.Setter.Body.IsNull;
 			
 			if (needsBody) {
-				MarkFoldStart();
 				NewLine();
 				Indent();
 				
@@ -644,7 +635,6 @@ namespace ICSharpCode.NRefactory.VB
 				
 				WriteKeyword("End");
 				WriteKeyword("Property");
-				MarkFoldEnd();
 			}
 			NewLine();
 			
@@ -668,7 +658,7 @@ namespace ICSharpCode.NRefactory.VB
 			
 			qualifiedType.Target.AcceptVisitor(this, data);
 			WriteToken(".", AstNode.Roles.Dot);
-			WriteIdentifier(qualifiedType.Name, TextTokenHelper.GetTextTokenType(qualifiedType.NameToken.Annotation<object>() ?? qualifiedType.Annotation<object>()));
+			WriteIdentifier(qualifiedType.Name, TextTokenKindUtils.GetTextTokenType(qualifiedType.NameToken.Annotation<object>() ?? qualifiedType.Annotation<object>()));
 			WriteTypeArguments(qualifiedType.TypeArguments);
 			
 			return EndNode(qualifiedType);
@@ -703,7 +693,7 @@ namespace ICSharpCode.NRefactory.VB
 		{
 			StartNode(simpleType);
 			
-			WriteIdentifier(simpleType.Identifier, TextTokenHelper.GetTextTokenType(simpleType.IdentifierToken.Annotation<object>() ?? simpleType.Annotation<object>()));
+			WriteIdentifier(simpleType.Identifier, TextTokenKindUtils.GetTextTokenType(simpleType.IdentifierToken.Annotation<object>() ?? simpleType.Annotation<object>()));
 			WriteTypeArguments(simpleType.TypeArguments);
 			
 			return EndNode(simpleType);
@@ -832,7 +822,7 @@ namespace ICSharpCode.NRefactory.VB
 		void Comma(AstNode nextNode, bool noSpaceAfterComma = false)
 		{
 			WriteSpecialsUpToRole(AstNode.Roles.Comma, nextNode);
-			formatter.WriteToken(",", TextTokenType.Operator);
+			formatter.WriteToken(",", TextTokenKind.Operator);
 			lastWritten = LastWritten.Other;
 			Space(!noSpaceAfterComma); // TODO: Comma policy has changed.
 		}
@@ -911,19 +901,19 @@ namespace ICSharpCode.NRefactory.VB
 			lastWritten = LastWritten.KeywordOrIdentifier;
 		}
 		
-		void WriteIdentifier(string identifier, TextTokenType tokenType, Role<Identifier> identifierRole = null)
+		void WriteIdentifier(string identifier, TextTokenKind tokenKind, Role<Identifier> identifierRole = null)
 		{
 			WriteSpecialsUpToRole(identifierRole ?? AstNode.Roles.Identifier);
 			if (IsKeyword(identifier, containerStack.Peek())) {
 				if (lastWritten == LastWritten.KeywordOrIdentifier)
 					Space(); // this space is not strictly required, so we call Space()
-				formatter.WriteToken("[", TextTokenType.Operator);
+				formatter.WriteToken("[", TextTokenKind.Operator);
 			} else if (lastWritten == LastWritten.KeywordOrIdentifier) {
 				formatter.Space(); // this space is strictly required, so we directly call the formatter
 			}
-			formatter.WriteIdentifier(identifier, tokenType);
+			formatter.WriteIdentifier(identifier, tokenKind);
 			if (IsKeyword(identifier, containerStack.Peek())) {
-				formatter.WriteToken("]", TextTokenType.Operator);
+				formatter.WriteToken("]", TextTokenKind.Operator);
 			}
 			lastWritten = LastWritten.KeywordOrIdentifier;
 		}
@@ -1050,16 +1040,6 @@ namespace ICSharpCode.NRefactory.VB
 		{
 			formatter.Unindent();
 		}
-		
-		void MarkFoldStart()
-		{
-			formatter.MarkFoldStart();
-		}
-		
-		void MarkFoldEnd()
-		{
-			formatter.MarkFoldEnd();
-		}
 		#endregion
 		
 		#region IsKeyword Test
@@ -1147,11 +1127,11 @@ namespace ICSharpCode.NRefactory.VB
 						formatter.Space();
 				} else {
 					WriteSpecialsUpToRole(AstNode.Roles.Dot, ident);
-					formatter.WriteToken(".", TextTokenType.Operator);
+					formatter.WriteToken(".", TextTokenKind.Operator);
 					lastWritten = LastWritten.Other;
 				}
 				WriteSpecialsUpToNode(ident);
-				formatter.WriteIdentifier(ident.Name, TextTokenHelper.GetTextTokenType(ident.Annotation<object>()));
+				formatter.WriteIdentifier(ident.Name, TextTokenKindUtils.GetTextTokenType(ident.Annotation<object>()));
 				lastWritten = LastWritten.KeywordOrIdentifier;
 			}
 		}
@@ -1250,13 +1230,13 @@ namespace ICSharpCode.NRefactory.VB
 			}
 			
 			if (val is string) {
-				formatter.WriteToken("\"" + ConvertString(val.ToString()) + "\"", TextTokenType.String);
+				formatter.WriteToken("\"" + ConvertString(val.ToString()) + "\"", TextTokenKind.String);
 				lastWritten = LastWritten.Other;
 			} else if (val is char) {
-				formatter.WriteToken("\"" + ConvertCharLiteral((char)val) + "\"c", TextTokenType.Char);
+				formatter.WriteToken("\"" + ConvertCharLiteral((char)val) + "\"c", TextTokenKind.Char);
 				lastWritten = LastWritten.Other;
 			} else if (val is decimal) {
-				formatter.WriteToken(((decimal)val).ToString(NumberFormatInfo.InvariantInfo) + "D", TextTokenType.Number);
+				formatter.WriteToken(((decimal)val).ToString(NumberFormatInfo.InvariantInfo) + "D", TextTokenKind.Number);
 				lastWritten = LastWritten.Other;
 			} else if (val is float) {
 				float f = (float)val;
@@ -1266,14 +1246,14 @@ namespace ICSharpCode.NRefactory.VB
 					WriteKeyword("Single");
 					WriteToken(".", AstNode.Roles.Dot);
 					if (float.IsPositiveInfinity(f))
-						WriteIdentifier("PositiveInfinity", TextTokenType.LiteralField);
+						WriteIdentifier("PositiveInfinity", TextTokenKind.LiteralField);
 					else if (float.IsNegativeInfinity(f))
-						WriteIdentifier("NegativeInfinity", TextTokenType.LiteralField);
+						WriteIdentifier("NegativeInfinity", TextTokenKind.LiteralField);
 					else
-						WriteIdentifier("NaN", TextTokenType.LiteralField);
+						WriteIdentifier("NaN", TextTokenKind.LiteralField);
 					return;
 				}
-				formatter.WriteToken(f.ToString("R", NumberFormatInfo.InvariantInfo) + "F", TextTokenType.Number);
+				formatter.WriteToken(f.ToString("R", NumberFormatInfo.InvariantInfo) + "F", TextTokenKind.Number);
 				lastWritten = LastWritten.Other;
 			} else if (val is double) {
 				double f = (double)val;
@@ -1283,17 +1263,17 @@ namespace ICSharpCode.NRefactory.VB
 					WriteKeyword("Double");
 					WriteToken(".", AstNode.Roles.Dot);
 					if (double.IsPositiveInfinity(f))
-						WriteIdentifier("PositiveInfinity", TextTokenType.LiteralField);
+						WriteIdentifier("PositiveInfinity", TextTokenKind.LiteralField);
 					else if (double.IsNegativeInfinity(f))
-						WriteIdentifier("NegativeInfinity", TextTokenType.LiteralField);
+						WriteIdentifier("NegativeInfinity", TextTokenKind.LiteralField);
 					else
-						WriteIdentifier("NaN", TextTokenType.LiteralField);
+						WriteIdentifier("NaN", TextTokenKind.LiteralField);
 					return;
 				}
 				string number = f.ToString("R", NumberFormatInfo.InvariantInfo);
 				if (number.IndexOf('.') < 0 && number.IndexOf('E') < 0)
 					number += ".0";
-				formatter.WriteToken(number, TextTokenType.Number);
+				formatter.WriteToken(number, TextTokenKind.Number);
 				// needs space if identifier follows number; this avoids mistaking the following identifier as type suffix
 				lastWritten = LastWritten.KeywordOrIdentifier;
 			} else if (val is IFormattable) {
@@ -1310,11 +1290,11 @@ namespace ICSharpCode.NRefactory.VB
 				if (val is long || val is ulong) {
 					b.Append("L");
 				}
-				formatter.WriteToken(b.ToString(), TextTokenHelper.GetTextTokenType(val));
+				formatter.WriteToken(b.ToString(), TextTokenKindUtils.GetTextTokenType(val));
 				// needs space if identifier follows number; this avoids mistaking the following identifier as type suffix
 				lastWritten = LastWritten.KeywordOrIdentifier;
 			} else {
-				formatter.WriteToken(val.ToString(), TextTokenHelper.GetTextTokenType(val));
+				formatter.WriteToken(val.ToString(), TextTokenKindUtils.GetTextTokenType(val));
 				lastWritten = LastWritten.Other;
 			}
 		}
@@ -1341,7 +1321,7 @@ namespace ICSharpCode.NRefactory.VB
 		{
 			StartNode(variableIdentifier);
 			
-			WriteIdentifier(variableIdentifier.Name.Name, TextTokenHelper.GetTextTokenType(variableIdentifier.Name.Annotation<object>()));
+			WriteIdentifier(variableIdentifier.Name.Name, TextTokenKindUtils.GetTextTokenType(variableIdentifier.Name.Annotation<object>()));
 			if (variableIdentifier.HasNullableSpecifier)
 				WriteToken("?", VariableIdentifier.Roles.QuestionMark);
 			if (variableIdentifier.ArraySizeSpecifiers.Count > 0)
@@ -1856,7 +1836,7 @@ namespace ICSharpCode.NRefactory.VB
 			if (eventDeclaration.IsCustom)
 				WriteKeyword("Custom");
 			WriteKeyword("Event");
-			WriteIdentifier(eventDeclaration.Name.Name, TextTokenHelper.GetTextTokenType(eventDeclaration.Name.Annotation<object>()));
+			WriteIdentifier(eventDeclaration.Name.Name, TextTokenKindUtils.GetTextTokenType(eventDeclaration.Name.Annotation<object>()));
 			if (!eventDeclaration.IsCustom && eventDeclaration.ReturnType.IsNull)
 				WriteCommaSeparatedListInParenthesis(eventDeclaration.Parameters, false);
 			if (!eventDeclaration.ReturnType.IsNull) {
@@ -1867,7 +1847,6 @@ namespace ICSharpCode.NRefactory.VB
 			WriteImplementsClause(eventDeclaration.ImplementsClause);
 			
 			if (eventDeclaration.IsCustom) {
-				MarkFoldStart();
 				NewLine();
 				Indent();
 				
@@ -1878,7 +1857,6 @@ namespace ICSharpCode.NRefactory.VB
 				Unindent();
 				WriteKeyword("End");
 				WriteKeyword("Event");
-				MarkFoldEnd();
 			}
 			NewLine();
 			
@@ -2181,7 +2159,6 @@ namespace ICSharpCode.NRefactory.VB
 				operatorDeclaration.ReturnType.AcceptVisitor(this, data);
 			}
 			if (!operatorDeclaration.Body.IsNull || (operatorDeclaration.Body.HiddenEnd != null && operatorDeclaration.Body.HiddenEnd.Count > 0)) {
-				MarkFoldStart();
 				NewLine();
 				Indent();
 				WriteBlock(operatorDeclaration.Body);
@@ -2191,7 +2168,6 @@ namespace ICSharpCode.NRefactory.VB
 				WriteKeyword("End");
 				WriteKeyword("Operator");
 				DebugEnd(operatorDeclaration, false);
-				MarkFoldEnd();
 			}
 			NewLine();
 			

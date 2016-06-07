@@ -16,12 +16,11 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-using System;
 using System.IO;
 using ICSharpCode.Decompiler.Ast;
 using ICSharpCode.Decompiler.Tests.Helpers;
-using dnlib.DotNet;
 using NUnit.Framework;
+using dnSpy.Decompiler.Shared;
 
 namespace ICSharpCode.Decompiler.Tests
 {
@@ -39,8 +38,8 @@ namespace ICSharpCode.Decompiler.Tests
 		void Run(string compiledFile, string expectedOutputFile)
 		{
 			string expectedOutput = File.ReadAllText(Path.Combine(path, expectedOutputFile));
-			var assembly = AssemblyDef.Load(Path.Combine(path, compiledFile));
-			AstBuilder decompiler = new AstBuilder(new DecompilerContext(assembly.ManifestModule));
+			var assembly = Utils.OpenModule(Path.Combine(path, compiledFile)).Assembly;
+			AstBuilder decompiler = AstBuilder.CreateAstBuilderTestContext(assembly.ManifestModule);
 			decompiler.AddAssembly(assembly);
 			new Helpers.RemoveCompilerAttribute().Run(decompiler.SyntaxTree);
 			StringWriter output = new StringWriter();

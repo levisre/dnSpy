@@ -19,10 +19,9 @@
 using System;
 using System.IO;
 using System.Text;
-using ICSharpCode.NRefactory;
+using dnSpy.Decompiler.Shared;
 
-namespace ICSharpCode.Decompiler
-{
+namespace ICSharpCode.Decompiler {
 	public class TextOutputWriter : TextWriter
 	{
 		readonly ITextOutput output;
@@ -38,14 +37,9 @@ namespace ICSharpCode.Decompiler
 			get { return Encoding.UTF8; }
 		}
 		
-		public override void Write(char value)
-		{
-			output.Write(value, TextTokenType.Text);
-		}
-		
 		public override void Write(string value)
 		{
-			output.Write(value, TextTokenType.Text);
+			output.Write(value, TextTokenKind.Text);
 		}
 		
 		public override void WriteLine()

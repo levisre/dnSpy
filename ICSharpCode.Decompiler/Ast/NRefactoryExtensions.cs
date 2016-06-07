@@ -18,13 +18,12 @@
 
 using System;
 using System.Collections.Generic;
-using ICSharpCode.Decompiler.ILAst;
 using ICSharpCode.NRefactory.CSharp;
 using ICSharpCode.NRefactory.PatternMatching;
 using dnlib.DotNet;
+using dnSpy.Decompiler.Shared;
 
-namespace ICSharpCode.Decompiler.Ast
-{
+namespace ICSharpCode.Decompiler.Ast {
 	public static class NRefactoryExtensions
 	{
 		public static T WithAnnotation<T>(this T node, object annotation) where T : AstNode
@@ -175,10 +174,9 @@ namespace ICSharpCode.Decompiler.Ast
 			}
 		}
 
-		public static AstNode CreateHidden(IEnumerable<ILRange> ilRanges, AstNode stmt)
+		public static AstNode CreateHidden(List<ILRange> list, AstNode stmt)
 		{
-			var list = ILRange.OrderAndJoin(ilRanges);
-			if (list.Count == 0)
+			if (list == null || list.Count == 0)
 				return stmt;
 			if (stmt == null)
 				stmt = new EmptyStatement();

@@ -24,15 +24,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using dnSpy.Decompiler.Shared;
 
-using Ast = ICSharpCode.NRefactory.VB.Ast;
-
-namespace ICSharpCode.NRefactory.VB.Ast
-{
+namespace ICSharpCode.NRefactory.VB.Ast {
 	public class SimpleType : AstType
 	{
 		public SimpleType(Identifier identifier)
@@ -45,14 +42,14 @@ namespace ICSharpCode.NRefactory.VB.Ast
 			this.IdentifierToken = Ast.Identifier.Create(annotations, identifier);
 		}
 		
-		public SimpleType(TextTokenType tokenType, string identifier)
+		public SimpleType(TextTokenKind tokenKind, string identifier)
 		{
-			this.IdentifierToken = Ast.Identifier.Create(tokenType, identifier);
+			this.IdentifierToken = Ast.Identifier.Create(tokenKind, identifier);
 		}
 		
-		public SimpleType(TextTokenType tokenType, string identifier, TextLocation location)
+		public SimpleType(TextTokenKind tokenKind, string identifier, TextLocation location)
 		{
-			SetChildByRole (Roles.Identifier, new Identifier (tokenType, identifier, location));
+			SetChildByRole (Roles.Identifier, new Identifier (tokenKind, identifier, location));
 		}
 		
 		public string Identifier {

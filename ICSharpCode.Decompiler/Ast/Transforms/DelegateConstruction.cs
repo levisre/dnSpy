@@ -20,46 +20,58 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Threading;
-using ICSharpCode.Decompiler;
+using System.Text;
+using dnlib.DotNet;
+using dnSpy.Decompiler.Shared;
 using ICSharpCode.Decompiler.ILAst;
-using ICSharpCode.NRefactory;
 using ICSharpCode.NRefactory.CSharp;
 using ICSharpCode.NRefactory.PatternMatching;
-using dnlib.DotNet;
 
-namespace ICSharpCode.Decompiler.Ast.Transforms
-{
+namespace ICSharpCode.Decompiler.Ast.Transforms {
 	/// <summary>
 	/// Converts "new Action(obj, ldftn(func))" into "new Action(obj.func)".
 	/// For anonymous methods, creates an AnonymousMethodExpression.
 	/// Also gets rid of any "Display Classes" left over after inlining an anonymous method.
 	/// </summary>
-	public class DelegateConstruction : ContextTrackingVisitor<object>
+	public class DelegateConstruction : ContextTrackingVisitor<object>, IAstTransformPoolObject
 	{
 		internal sealed class Annotation
 		{
+			public static readonly Annotation True = new Annotation(true);
+			public static readonly Annotation False = new Annotation(false);
+
 			/// <summary>
 			/// ldftn or ldvirtftn?
 			/// </summary>
 			public readonly bool IsVirtual;
 			
-			public Annotation(bool isVirtual)
+			Annotation(bool isVirtual)
 			{
 				this.IsVirtual = isVirtual;
 			}
 		}
-		
+
 		internal sealed class CapturedVariableAnnotation
 		{
+			public static readonly CapturedVariableAnnotation Instance = new CapturedVariableAnnotation();
+			CapturedVariableAnnotation() { }
 		}
 		
-		List<string> currentlyUsedVariableNames = new List<string>();
-		
+		readonly List<string> currentlyUsedVariableNames = new List<string>();
+		readonly StringBuilder stringBuilder;
+
 		public DelegateConstruction(DecompilerContext context) : base(context)
 		{
+			this.stringBuilder = new StringBuilder();
+			Reset(context);
 		}
-		
+
+		public void Reset(DecompilerContext context)
+		{
+			this.context = context;
+			currentlyUsedVariableNames.Clear();
+		}
+
 		public override object VisitObjectCreateExpression(ObjectCreateExpression objectCreateExpression, object data)
 		{
 			if (objectCreateExpression.Arguments.Count == 2) {
@@ -97,7 +109,7 @@ namespace ICSharpCode.Decompiler.Ast.Transforms
 								}
 							}
 							if (!isExtensionMethod) {
-								obj = new TypeReferenceExpression { Type = AstBuilder.ConvertType(method.DeclaringType) };
+								obj = new TypeReferenceExpression { Type = AstBuilder.ConvertType(method.DeclaringType, stringBuilder) };
 							}
 						}
 						// now transform the identifier into a member reference
@@ -144,7 +156,7 @@ namespace ICSharpCode.Decompiler.Ast.Transforms
 			ame.CopyAnnotationsFrom(objectCreateExpression); // copy ILRanges etc.
 			ame.RemoveAnnotations<IMethod>(); // remove reference to delegate ctor
 			ame.AddAnnotation(method); // add reference to anonymous method
-			ame.Parameters.AddRange(AstBuilder.MakeParameters(method, isLambda: true));
+			ame.Parameters.AddRange(AstBuilder.MakeParameters(method, stringBuilder, isLambda: true));
 			ame.HasParameterList = true;
 			
 			// rename variables so that they don't conflict with the parameters:
@@ -159,7 +171,7 @@ namespace ICSharpCode.Decompiler.Ast.Transforms
 			subContext.CurrentMethodIsAsync = false;
 			subContext.ReservedVariableNames.AddRange(currentlyUsedVariableNames);
 			MemberMapping mm;
-			BlockStatement body = AstMethodBodyBuilder.CreateMethodBody(method, subContext, ame.Parameters, out mm);
+			BlockStatement body = AstMethodBodyBuilder.CreateMethodBody(method, subContext, ame.Parameters, stringBuilder, out mm);
 			body.AddAnnotation(mm);
 			TransformationPipeline.RunTransformationsUntil(body, v => v is DelegateConstruction, subContext);
 			body.AcceptVisitor(this, null);
@@ -211,7 +223,7 @@ namespace ICSharpCode.Decompiler.Ast.Transforms
 				replacement = ame;
 			}
 			var expectedType = objectCreateExpression.Annotation<TypeInformation>().ExpectedType.Resolve();
-			if (expectedType != null && !expectedType.IsDelegate()) {
+			if (expectedType != null && !expectedType.IsDelegate) {
 				var simplifiedDelegateCreation = (ObjectCreateExpression)objectCreateExpression.Clone();
 				simplifiedDelegateCreation.Arguments.Clear();
 				simplifiedDelegateCreation.Arguments.Add(replacement);
@@ -238,7 +250,7 @@ namespace ICSharpCode.Decompiler.Ast.Transforms
 		public override object VisitInvocationExpression(InvocationExpression invocationExpression, object data)
 		{
 			if (context.Settings.ExpressionTrees && ExpressionTreeConverter.CouldBeExpressionTree(invocationExpression)) {
-				Expression converted = ExpressionTreeConverter.TryConvert(context, invocationExpression);
+				Expression converted = ExpressionTreeConverter.TryConvert(context, invocationExpression, this.stringBuilder);
 				if (converted != null) {
 					//TODO: Do we need to preserve ILRanges or is it taken care of by TryConvert?
 					invocationExpression.ReplaceWith(converted);
@@ -376,7 +388,7 @@ namespace ICSharpCode.Decompiler.Ast.Transforms
 					ExpressionStatement closureFieldAssignmentPattern = new ExpressionStatement(
 						new AssignmentExpression(
 							new NamedNode("left", new MemberReferenceExpression { 
-							              	Target = IdentifierExpression.Create(variable.Name, variable.IsParameter ? TextTokenType.Parameter : TextTokenType.Local),
+							              	Target = IdentifierExpression.Create(variable.Name, variable.IsParameter ? TextTokenKind.Parameter : TextTokenKind.Local),
 							              	MemberName = Pattern.AnyString
 							              }),
 							new AnyNode("right")
@@ -442,12 +454,12 @@ namespace ICSharpCode.Decompiler.Ast.Transforms
 					currentlyUsedVariableNames.Add(capturedVariableName);
 					ILVariable ilVar = new ILVariable
 					{
-						IsGenerated = true,
+						GeneratedByDecompiler = true,
 						Name = capturedVariableName,
 						Type = field.FieldType,
 					};
-					variablesToDeclare.Add(Tuple.Create(AstBuilder.ConvertType(field.FieldType, field), ilVar));
-					dict[field] = IdentifierExpression.Create(capturedVariableName, TextTokenType.Local).WithAnnotation(ilVar);
+					variablesToDeclare.Add(Tuple.Create(AstBuilder.ConvertType(field.FieldType, stringBuilder, field), ilVar));
+					dict[field] = IdentifierExpression.Create(capturedVariableName, TextTokenKind.Local).WithAnnotation(ilVar);
 				}
 				
 				// Now figure out where the closure was accessed and use the simpler replacement expression there:
@@ -466,8 +478,8 @@ namespace ICSharpCode.Decompiler.Ast.Transforms
 				// Now insert the variable declarations (we can do this after the replacements only so that the scope detection works):
 				Statement insertionPoint = blockStatement.Statements.FirstOrDefault();
 				foreach (var tuple in variablesToDeclare) {
-					var newVarDecl = new VariableDeclarationStatement(tuple.Item2.IsParameter ? TextTokenType.Parameter : TextTokenType.Local, tuple.Item1, tuple.Item2.Name);
-					newVarDecl.Variables.Single().AddAnnotation(new CapturedVariableAnnotation());
+					var newVarDecl = new VariableDeclarationStatement(tuple.Item2.IsParameter ? TextTokenKind.Parameter : TextTokenKind.Local, tuple.Item1, tuple.Item2.Name);
+					newVarDecl.Variables.Single().AddAnnotation(CapturedVariableAnnotation.Instance);
 					newVarDecl.Variables.Single().AddAnnotation(tuple.Item2);
 					blockStatement.Statements.InsertBefore(insertionPoint, newVarDecl);
 				}
@@ -484,7 +496,7 @@ namespace ICSharpCode.Decompiler.Ast.Transforms
 				return;
 			}
 			// Naming conflict. Let's rename the existing variable so that the field keeps the name from metadata.
-			NameVariables nv = new NameVariables();
+			NameVariables nv = new NameVariables(stringBuilder);
 			// Add currently used variable and parameter names
 			foreach (string nameInUse in currentlyUsedVariableNames)
 				nv.AddExistingName(nameInUse);

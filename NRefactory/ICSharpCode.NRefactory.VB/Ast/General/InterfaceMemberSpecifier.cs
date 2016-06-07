@@ -1,11 +1,10 @@
 ﻿// Copyright (c) AlphaSierraPapa for the SharpDevelop Team (for details please see \doc\copyright.txt)
 // This code is distributed under MIT X11 license (for details please see \doc\license.txt)
 
-using System;
 using System.Collections.Generic;
+using dnSpy.Decompiler.Shared;
 
-namespace ICSharpCode.NRefactory.VB.Ast
-{
+namespace ICSharpCode.NRefactory.VB.Ast {
 	public class InterfaceMemberSpecifier : AstNode
 	{
 		public static readonly Role<InterfaceMemberSpecifier> InterfaceMemberSpecifierRole = new Role<InterfaceMemberSpecifier>("InterfaceMemberSpecifier");
@@ -16,7 +15,7 @@ namespace ICSharpCode.NRefactory.VB.Ast
 			Member = member;
 		}
 		
-		public InterfaceMemberSpecifier(AstType target, string member, TextTokenType typeToken)
+		public InterfaceMemberSpecifier(AstType target, string member, TextTokenKind typeToken)
 		{
 			Target = new TypeReferenceExpression(target);
 			Member = new Identifier(typeToken, member, TextLocation.Empty);

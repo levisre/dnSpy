@@ -16,33 +16,48 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 
 using dnlib.DotNet;
 
-namespace ICSharpCode.Decompiler.ILAst
-{
+namespace ICSharpCode.Decompiler.ILAst {
 	public class SimpleControlFlow
 	{
-		Dictionary<ILLabel, int> labelGlobalRefCount = new Dictionary<ILLabel, int>();
-		Dictionary<ILLabel, ILBasicBlock> labelToBasicBlock = new Dictionary<ILLabel, ILBasicBlock>();
-		
+		readonly Dictionary<ILLabel, int> labelGlobalRefCount = new Dictionary<ILLabel, int>();
+		readonly Dictionary<ILLabel, ILBasicBlock> labelToBasicBlock = new Dictionary<ILLabel, ILBasicBlock>();
+		readonly List<ILExpression> List_ILExpression = new List<ILExpression>();
+		readonly List<ILBasicBlock> List_ILBasicBlock = new List<ILBasicBlock>();
+
 		DecompilerContext context;
 		ICorLibTypes corLib;
 		
 		public SimpleControlFlow(DecompilerContext context, ILBlock method)
 		{
+			Initialize(context, method);
+		}
+
+		public void Initialize(DecompilerContext context, ILBlock method)
+		{
+			this.labelGlobalRefCount.Clear();
+			this.labelToBasicBlock.Clear();
 			this.context = context;
 			this.corLib = context.CurrentMethod.Module.CorLibTypes;
 			
-			foreach(ILLabel target in method.GetSelfAndChildrenRecursive<ILExpression>(e => e.IsBranch()).SelectMany(e => e.GetBranchTargets())) {
-				labelGlobalRefCount[target] = labelGlobalRefCount.GetOrDefault(target) + 1;
+			foreach (var e in method.GetSelfAndChildrenRecursive<ILExpression>(List_ILExpression, e => e.IsBranch())) {
+				foreach (var target in e.GetBranchTargets())
+					labelGlobalRefCount[target] = labelGlobalRefCount.GetOrDefault(target) + 1;
 			}
-			foreach(ILBasicBlock bb in method.GetSelfAndChildrenRecursive<ILBasicBlock>()) {
-				foreach(ILLabel label in bb.GetChildren().OfType<ILLabel>()) {
+			foreach(ILBasicBlock bb in method.GetSelfAndChildrenRecursive<ILBasicBlock>(List_ILBasicBlock)) {
+				int index = 0;
+				for (;;) {
+					var node = bb.GetNext(ref index);
+					if (node == null)
+						break;
+					var label = node as ILLabel;
+					if (label == null)
+						continue;
 					labelToBasicBlock[label] = bb;
 				}
 			}
@@ -120,7 +135,7 @@ namespace ICSharpCode.Decompiler.ILAst
 						return false;
 					
 					// Only simplify generated variables
-					if (opCode == ILCode.Stloc && !trueLocVar.IsGenerated)
+					if (opCode == ILCode.Stloc && !trueLocVar.GeneratedByDecompiler)
 						return false;
 					
 					// Create ternary expression
@@ -128,13 +143,32 @@ namespace ICSharpCode.Decompiler.ILAst
 				}
 				
 				var tail = head.Body.RemoveTail(ILCode.Brtrue, ILCode.Br);
-				var newExprNodes = newExpr.GetSelfAndChildrenRecursive<ILNode>().ToArray();
-				foreach (var node in labelToBasicBlock[trueLabel].GetSelfAndChildrenRecursive<ILNode>().Except(newExprNodes))
-					newExpr.ILRanges.AddRange(node.AllILRanges);
-				foreach (var node in labelToBasicBlock[falseLabel].GetSelfAndChildrenRecursive<ILNode>().Except(newExprNodes))
-					newExpr.ILRanges.AddRange(node.AllILRanges);
-				newExpr.ILRanges.AddRange(tail[0].ILRanges);
-				newExpr.ILRanges.AddRange(tail[1].GetSelfAndChildrenRecursiveILRanges());
+				if (context.CalculateILRanges) {
+					var listNodes = new List<ILNode>();
+					var newExprNodes = newExpr.GetSelfAndChildrenRecursive<ILNode>(listNodes).ToArray();
+					foreach (var node in labelToBasicBlock[trueLabel].GetSelfAndChildrenRecursive<ILNode>(listNodes).Except(newExprNodes)) {
+						long index = 0;
+						bool done = false;
+						for (;;) {
+							var b = node.GetAllILRanges(ref index, ref done);
+							if (done)
+								break;
+							newExpr.ILRanges.Add(b);
+						}
+					}
+					foreach (var node in labelToBasicBlock[falseLabel].GetSelfAndChildrenRecursive<ILNode>(listNodes).Except(newExprNodes)) {
+						long index = 0;
+						bool done = false;
+						for (;;) {
+							var b = node.GetAllILRanges(ref index, ref done);
+							if (done)
+								break;
+							newExpr.ILRanges.Add(b);
+						}
+					}
+					newExpr.ILRanges.AddRange(tail[0].ILRanges);
+					tail[1].AddSelfAndChildrenRecursiveILRanges(newExpr.ILRanges);
+				}
 
 				head.Body.Add(new ILExpression(opCode, trueLocVar, newExpr));
 				if (isStloc)
@@ -189,13 +223,24 @@ namespace ICSharpCode.Decompiler.ILAst
 				ILExpression nullCoal, stloc;
 				head.Body.Add(stloc = new ILExpression(ILCode.Stloc, v, nullCoal = new ILExpression(ILCode.NullCoalescing, null, leftExpr, rightExpr)));
 				head.Body.Add(new ILExpression(ILCode.Br, endBBLabel));
-				stloc.ILRanges.AddRange(tail[0].GetSelfAndChildrenRecursiveILRanges());
-				nullCoal.ILRanges.AddRange(tail[1].GetSelfAndChildrenRecursiveILRanges());
-				rightExpr.ILRanges.AddRange(tail[2].GetSelfAndChildrenRecursiveILRanges());	// br (to rightBB)
-				rightExpr.ILRanges.AddRange(rightBB.AllILRanges);
-				rightExpr.ILRanges.AddRange(rightBB.Body[0].GetSelfAndChildrenRecursiveILRanges());	// label
-				rightExpr.ILRanges.AddRange(rightBB.Body[1].ILRanges);		// stloc: no recursive add
-				rightExpr.ILRanges.AddRange(rightBB.Body[2].GetSelfAndChildrenRecursiveILRanges());	// br
+				if (context.CalculateILRanges) {
+					tail[0].AddSelfAndChildrenRecursiveILRanges(stloc.ILRanges);
+					tail[1].AddSelfAndChildrenRecursiveILRanges(nullCoal.ILRanges);
+					tail[2].AddSelfAndChildrenRecursiveILRanges(rightExpr.ILRanges);    // br (to rightBB)
+
+					long index = 0;
+					bool done = false;
+					for (;;) {
+						var b = rightBB.GetAllILRanges(ref index, ref done);
+						if (done)
+							break;
+						rightExpr.ILRanges.Add(b);
+					}
+
+					rightBB.Body[0].AddSelfAndChildrenRecursiveILRanges(rightExpr.ILRanges);    // label
+					rightExpr.ILRanges.AddRange(rightBB.Body[1].ILRanges);      // stloc: no recursive add
+					rightBB.Body[2].AddSelfAndChildrenRecursiveILRanges(rightExpr.ILRanges);    // br
+				}
 				
 				body.RemoveOrThrow(labelToBasicBlock[rightBBLabel]);
 				return true;
@@ -237,17 +282,21 @@ namespace ICSharpCode.Decompiler.ILAst
 							logicExpr = MakeLeftAssociativeShortCircuit(ILCode.LogicOr, negate ? condExpr : new ILExpression(ILCode.LogicNot, null, condExpr), nextCondExpr);
 						}
 						var tail = head.Body.RemoveTail(ILCode.Brtrue, ILCode.Br);
-						nextCondExpr.ILRanges.AddRange(tail[0].ILRanges);	// brtrue
-						nextCondExpr.ILRanges.AddRange(nextBasicBlock.ILRanges);
-						nextCondExpr.ILRanges.AddRange(nextBasicBlock.Body[0].GetSelfAndChildrenRecursiveILRanges());	// label
-						nextCondExpr.ILRanges.AddRange(nextBasicBlock.Body[1].ILRanges);	// brtrue
+						if (context.CalculateILRanges) {
+							nextCondExpr.ILRanges.AddRange(tail[0].ILRanges);   // brtrue
+							nextCondExpr.ILRanges.AddRange(nextBasicBlock.ILRanges);
+							nextBasicBlock.Body[0].AddSelfAndChildrenRecursiveILRanges(nextCondExpr.ILRanges);  // label
+							nextCondExpr.ILRanges.AddRange(nextBasicBlock.Body[1].ILRanges);    // brtrue
+						}
 
 						head.Body.Add(new ILExpression(ILCode.Brtrue, nextTrueLablel, logicExpr));
 						ILExpression brFalseLbl;
 						head.Body.Add(brFalseLbl = new ILExpression(ILCode.Br, nextFalseLabel));
-						brFalseLbl.ILRanges.AddRange(nextBasicBlock.Body[2].GetSelfAndChildrenRecursiveILRanges());	// br
-						brFalseLbl.ILRanges.AddRange(nextBasicBlock.EndILRanges);
-						brFalseLbl.ILRanges.AddRange(tail[1].GetSelfAndChildrenRecursiveILRanges()); // br
+						if (context.CalculateILRanges) {
+							nextBasicBlock.Body[2].AddSelfAndChildrenRecursiveILRanges(brFalseLbl.ILRanges);    // br
+							brFalseLbl.ILRanges.AddRange(nextBasicBlock.EndILRanges);
+							tail[1].AddSelfAndChildrenRecursiveILRanges(brFalseLbl.ILRanges); // br
+						}
 						
 						// Remove the inlined branch from scope
 						body.RemoveOrThrow(nextBasicBlock);
@@ -352,7 +401,6 @@ namespace ICSharpCode.Decompiler.ILAst
 			ILExpression shortCircuitExpr = MakeLeftAssociativeShortCircuit(op, opFalseArg, rightExpression);
 			shortCircuitExpr.Operand = opBitwise;
 			
-			Debug.Fail("Preserve ILRanges");//TODO: Could never trigger this code path. Tested many asms.
 			var tail = head.Body.RemoveTail(ILCode.Stloc, ILCode.Brtrue, ILCode.Br);
 			//TODO: Keep tail's ILRanges
 			//TODO: Keep ILRanges of other things that are removed by this method
@@ -371,7 +419,8 @@ namespace ICSharpCode.Decompiler.ILAst
 				ILExpression current = right;
 				while(current.Arguments[0].Match(code))
 					current = current.Arguments[0];
-				current.ILRanges.AddRange(current.Arguments[0].GetSelfAndChildrenRecursiveILRanges());
+				if (context.CalculateILRanges)
+					current.Arguments[0].AddSelfAndChildrenRecursiveILRanges(current.ILRanges);
 				current.Arguments[0] = new ILExpression(code, null, left, current.Arguments[0]) { InferredType = corLib.Boolean };
 				return right;
 			} else {
@@ -393,14 +442,18 @@ namespace ICSharpCode.Decompiler.ILAst
 			   )
 			{
 				var tail = head.Body.RemoveTail(ILCode.Br);
-				nextBB.ILRanges.AddRange(tail[0].GetSelfAndChildrenRecursiveILRanges());
-				nextBB.ILRanges.AddRange(nextBB.Body[0].GetSelfAndChildrenRecursiveILRanges());
+				if (context.CalculateILRanges) {
+					tail[0].AddSelfAndChildrenRecursiveILRanges(nextBB.ILRanges);
+					nextBB.Body[0].AddSelfAndChildrenRecursiveILRanges(nextBB.ILRanges);
+				}
 				nextBB.Body.RemoveAt(0);  // Remove label
-				if (head.Body.Count > 0)
-					head.Body[head.Body.Count - 1].EndILRanges.AddRange(nextBB.ILRanges);
-				else
-					head.ILRanges.AddRange(nextBB.ILRanges);
-				head.EndILRanges.AddRange(nextBB.EndILRanges);
+				if (context.CalculateILRanges) {
+					if (head.Body.Count > 0)
+						head.Body[head.Body.Count - 1].EndILRanges.AddRange(nextBB.ILRanges);
+					else
+						head.ILRanges.AddRange(nextBB.ILRanges);
+					head.EndILRanges.AddRange(nextBB.EndILRanges);
+				}
 				head.Body.AddRange(nextBB.Body);
 				
 				body.RemoveOrThrow(nextBB);

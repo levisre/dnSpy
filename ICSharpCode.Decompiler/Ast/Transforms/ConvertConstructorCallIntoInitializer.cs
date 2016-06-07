@@ -24,17 +24,23 @@ using ICSharpCode.Decompiler.ILAst;
 using ICSharpCode.NRefactory.CSharp;
 using ICSharpCode.NRefactory.PatternMatching;
 using dnlib.DotNet;
+using dnSpy.Decompiler.Shared;
 
 namespace ICSharpCode.Decompiler.Ast.Transforms
 {
 	/// <summary>
 	/// If the first element of a constructor is a chained constructor call, convert it into a constructor initializer.
 	/// </summary>
-	public class ConvertConstructorCallIntoInitializer : DepthFirstAstVisitor<object, object>, IAstTransform
+	public class ConvertConstructorCallIntoInitializer : DepthFirstAstVisitor<object, object>, IAstTransformPoolObject
 	{
-		readonly DecompilerContext context;
+		DecompilerContext context;
 
 		public ConvertConstructorCallIntoInitializer(DecompilerContext context)
+		{
+			Reset(context);
+		}
+
+		public void Reset(DecompilerContext context)
 		{
 			this.context = context;
 		}
@@ -65,7 +71,7 @@ namespace ICSharpCode.Decompiler.Ast.Transforms
 					ci.AddAnnotation(ilRanges);
 				}
 				else
-					constructorDeclaration.Body.HiddenStart = NRefactoryExtensions.CreateHidden(ilRanges, constructorDeclaration.Body.HiddenStart);
+					constructorDeclaration.Body.HiddenStart = NRefactoryExtensions.CreateHidden(!context.CalculateILRanges ? null : ILRange.OrderAndJoinList(ilRanges), constructorDeclaration.Body.HiddenStart);
 				// Remove the statement:
 				stmt.Remove();
 			}
@@ -159,7 +165,7 @@ namespace ICSharpCode.Decompiler.Ast.Transforms
 		
 		void RemoveSingleEmptyConstructor(TypeDeclaration typeDeclaration)
 		{
-			if (!context.Settings.RemoveEmptyDefaultConstructors)
+			if (!context.Settings.RemoveEmptyDefaultConstructors || context.Settings.ForceShowAllMembers)
 				return;
 			var instanceCtors = typeDeclaration.Members.OfType<ConstructorDeclaration>().Where(c => (c.Modifiers & Modifiers.Static) == 0).ToArray();
 			if (instanceCtors.Length == 1) {
@@ -203,7 +209,7 @@ namespace ICSharpCode.Decompiler.Ast.Transforms
 						fieldDecl.AddAnnotation(ctorIlRanges);
 						es.Remove();
 					}
-					if (context.Settings.RemoveEmptyDefaultConstructors && staticCtor.Body.Statements.Count == 0)
+					if (!context.Settings.ForceShowAllMembers && context.Settings.RemoveEmptyDefaultConstructors && staticCtor.Body.Statements.Count == 0)
 						staticCtor.Remove();
 				}
 			}

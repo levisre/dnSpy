@@ -18,16 +18,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
 using System.Threading;
-using ICSharpCode.NRefactory;
 using dnlib.DotNet;
 using dnlib.DotNet.Emit;
+using dnSpy.Decompiler.Shared;
 
-namespace ICSharpCode.Decompiler.Disassembler
-{
+namespace ICSharpCode.Decompiler.Disassembler {
 	public class DisassemblerOptions
 	{
 		public DisassemblerOptions(CancellationToken cancellationToken, ModuleDef ownerModule)
@@ -76,7 +72,7 @@ namespace ICSharpCode.Decompiler.Disassembler
 	/// </summary>
 	public sealed class ReflectionDisassembler
 	{
-		ITextOutput output;
+		readonly ITextOutput output;
 		readonly DisassemblerOptions options;
 		bool isInType; // whether we are currently disassembling a whole type (-> defaultCollapsed for foldings)
 		MethodBodyDisassembler methodBodyDisassembler;
@@ -147,7 +143,7 @@ namespace ICSharpCode.Decompiler.Disassembler
 			if (options.GetXmlDocComments == null)
 				return;
 			foreach (var line in options.GetXmlDocComments(mr)) {
-				output.Write("///", TextTokenType.XmlDocTag);
+				output.Write("///", TextTokenKind.XmlDocTag);
 				output.WriteXmlDoc(line);
 				output.WriteLine();
 			}
@@ -161,7 +157,7 @@ namespace ICSharpCode.Decompiler.Disassembler
 			// write method header
 			WriteXmlDocComment(method);
 			AddComment(method);
-			output.WriteDefinition(".method", method, TextTokenType.ILDirective, false);
+			output.WriteDefinition(".method", method, TextTokenKind.ILDirective, false);
 			output.WriteSpace();
 			DisassembleMethodInternal(method);
 		}
@@ -176,69 +172,69 @@ namespace ICSharpCode.Decompiler.Disassembler
 			WriteEnum(method.Attributes & MethodAttributes.MemberAccessMask, methodVisibility);
 			WriteFlags(method.Attributes & ~MethodAttributes.MemberAccessMask, methodAttributeFlags);
 			if (method.IsCompilerControlled) {
-				output.Write("privatescope", TextTokenType.Keyword);
+				output.Write("privatescope", TextTokenKind.Keyword);
 				output.WriteSpace();
 			}
 			
 			if ((method.Attributes & MethodAttributes.PinvokeImpl) == MethodAttributes.PinvokeImpl) {
-				output.Write("pinvokeimpl", TextTokenType.Keyword);
+				output.Write("pinvokeimpl", TextTokenKind.Keyword);
 				if (method.HasImplMap) {
 					ImplMap info = method.ImplMap;
-					output.Write('(', TextTokenType.Operator);
-					output.Write("\"" + NRefactory.CSharp.TextWriterTokenWriter.ConvertString(info.Module == null ? string.Empty : info.Module.Name.String) + "\"", TextTokenType.String);
+					output.Write("(", TextTokenKind.Operator);
+					output.Write("\"" + NRefactory.CSharp.TextWriterTokenWriter.ConvertString(info.Module == null ? string.Empty : info.Module.Name.String) + "\"", TextTokenKind.String);
 
 					if (!string.IsNullOrEmpty(info.Name) && info.Name != method.Name) {
 						output.WriteSpace();
-						output.Write("as", TextTokenType.Keyword);
+						output.Write("as", TextTokenKind.Keyword);
 						output.WriteSpace();
-						output.Write("\"" + NRefactory.CSharp.TextWriterTokenWriter.ConvertString(info.Name) + "\"", TextTokenType.String);
+						output.Write("\"" + NRefactory.CSharp.TextWriterTokenWriter.ConvertString(info.Name) + "\"", TextTokenKind.String);
 					}
 
 					if (info.IsNoMangle) {
 						output.WriteSpace();
-						output.Write("nomangle", TextTokenType.Keyword);
+						output.Write("nomangle", TextTokenKind.Keyword);
 					}
 
 					if (info.IsCharSetAnsi) {
 						output.WriteSpace();
-						output.Write("ansi", TextTokenType.Keyword);
+						output.Write("ansi", TextTokenKind.Keyword);
 					}
 					else if (info.IsCharSetAuto) {
 						output.WriteSpace();
-						output.Write("autochar", TextTokenType.Keyword);
+						output.Write("autochar", TextTokenKind.Keyword);
 					}
 					else if (info.IsCharSetUnicode) {
 						output.WriteSpace();
-						output.Write("unicode", TextTokenType.Keyword);
+						output.Write("unicode", TextTokenKind.Keyword);
 					}
 
 					if (info.SupportsLastError) {
 						output.WriteSpace();
-						output.Write("lasterr", TextTokenType.Keyword);
+						output.Write("lasterr", TextTokenKind.Keyword);
 					}
 
 					if (info.IsCallConvCdecl) {
 						output.WriteSpace();
-						output.Write("cdecl", TextTokenType.Keyword);
+						output.Write("cdecl", TextTokenKind.Keyword);
 					}
 					else if (info.IsCallConvFastcall) {
 						output.WriteSpace();
-						output.Write("fastcall", TextTokenType.Keyword);
+						output.Write("fastcall", TextTokenKind.Keyword);
 					}
 					else if (info.IsCallConvStdcall) {
 						output.WriteSpace();
-						output.Write("stdcall", TextTokenType.Keyword);
+						output.Write("stdcall", TextTokenKind.Keyword);
 					}
 					else if (info.IsCallConvThiscall) {
 						output.WriteSpace();
-						output.Write("thiscall", TextTokenType.Keyword);
+						output.Write("thiscall", TextTokenKind.Keyword);
 					}
 					else if (info.IsCallConvWinapi) {
 						output.WriteSpace();
-						output.Write("winapi", TextTokenType.Keyword);
+						output.Write("winapi", TextTokenKind.Keyword);
 					}
 
-					output.Write(')', TextTokenType.Operator);
+					output.Write(")", TextTokenKind.Operator);
 				}
 				output.WriteSpace();
 			}
@@ -246,12 +242,12 @@ namespace ICSharpCode.Decompiler.Disassembler
 			output.WriteLine();
 			output.Indent();
 			if (method.ExplicitThis) {
-				output.Write("instance", TextTokenType.Keyword);
+				output.Write("instance", TextTokenKind.Keyword);
 				output.WriteSpace();
-				output.Write("explicit", TextTokenType.Keyword);
+				output.Write("explicit", TextTokenKind.Keyword);
 				output.WriteSpace();
 			} else if (method.HasThis) {
-				output.Write("instance", TextTokenType.Keyword);
+				output.Write("instance", TextTokenKind.Keyword);
 				output.WriteSpace();
 			}
 			
@@ -266,30 +262,30 @@ namespace ICSharpCode.Decompiler.Disassembler
 			}
 			
 			if (method.IsCompilerControlled) {
-				output.Write(DisassemblerHelpers.Escape(method.Name + "$PST" + method.MDToken.ToInt32().ToString("X8")), TextTokenHelper.GetTextTokenType(method));
+				output.Write(DisassemblerHelpers.Escape(method.Name + "$PST" + method.MDToken.ToInt32().ToString("X8")), TextTokenKindUtils.GetTextTokenType(method));
 			} else {
-				output.Write(DisassemblerHelpers.Escape(method.Name), TextTokenHelper.GetTextTokenType(method));
+				output.Write(DisassemblerHelpers.Escape(method.Name), TextTokenKindUtils.GetTextTokenType(method));
 			}
 			
 			WriteTypeParameters(output, method);
 			
 			//( params )
 			output.WriteSpace();
-			output.Write('(', TextTokenType.Operator);
+			output.Write("(", TextTokenKind.Operator);
 			if (method.Parameters.GetNumberOfNormalParameters() > 0) {
 				output.WriteLine();
 				output.Indent();
 				WriteParameters(method.Parameters);
 				output.Unindent();
 			}
-			output.Write(')', TextTokenType.Operator);
+			output.Write(")", TextTokenKind.Operator);
 			output.WriteSpace();
 			//cil managed
 			WriteEnum(method.ImplAttributes & MethodImplAttributes.CodeTypeMask, methodCodeType);
 			if ((method.ImplAttributes & MethodImplAttributes.ManagedMask) == MethodImplAttributes.Managed)
-				output.Write("managed", TextTokenType.Keyword);
+				output.Write("managed", TextTokenKind.Keyword);
 			else
-				output.Write("unmanaged", TextTokenType.Keyword);
+				output.Write("unmanaged", TextTokenKind.Keyword);
 			output.WriteSpace();
 			WriteFlags(method.ImplAttributes & ~(MethodImplAttributes.CodeTypeMask | MethodImplAttributes.ManagedMask), methodImpl);
 			
@@ -298,18 +294,19 @@ namespace ICSharpCode.Decompiler.Disassembler
 			WriteAttributes(method.CustomAttributes);
 			if (method.HasOverrides) {
 				foreach (var methodOverride in method.Overrides) {
-					output.Write(".override", TextTokenType.ILDirective);
+					output.Write(".override", TextTokenKind.ILDirective);
 					output.WriteSpace();
-					output.Write("method", TextTokenType.Keyword);
+					output.Write("method", TextTokenKind.Keyword);
 					output.WriteSpace();
 					methodOverride.MethodDeclaration.WriteMethodTo(output);
 					output.WriteLine();
 				}
 			}
+			WriteParameterAttributes(0, method.Parameters.ReturnParameter);
 			foreach (var p in method.Parameters) {
 				if (p.IsHiddenThisParameter)
 					continue;
-				WriteParameterAttributes(p);
+				WriteParameterAttributes(p.MethodSigIndex + 1, p);
 			}
 			WriteSecurityDeclarations(method);
 			
@@ -329,74 +326,74 @@ namespace ICSharpCode.Decompiler.Disassembler
 			if (!secDeclProvider.HasDeclSecurities)
 				return;
 			foreach (var secdecl in secDeclProvider.DeclSecurities) {
-				output.Write(".permissionset", TextTokenType.ILDirective);
+				output.Write(".permissionset", TextTokenKind.ILDirective);
 				output.WriteSpace();
 				switch (secdecl.Action) {
 					case SecurityAction.Request:
-					output.Write("request", TextTokenType.Keyword);
+					output.Write("request", TextTokenKind.Keyword);
 						break;
 					case SecurityAction.Demand:
-						output.Write("demand", TextTokenType.Keyword);
+						output.Write("demand", TextTokenKind.Keyword);
 						break;
 					case SecurityAction.Assert:
-						output.Write("assert", TextTokenType.Keyword);
+						output.Write("assert", TextTokenKind.Keyword);
 						break;
 					case SecurityAction.Deny:
-						output.Write("deny", TextTokenType.Keyword);
+						output.Write("deny", TextTokenKind.Keyword);
 						break;
 					case SecurityAction.PermitOnly:
-						output.Write("permitonly", TextTokenType.Keyword);
+						output.Write("permitonly", TextTokenKind.Keyword);
 						break;
 					case SecurityAction.LinkDemand:
-						output.Write("linkcheck", TextTokenType.Keyword);
+						output.Write("linkcheck", TextTokenKind.Keyword);
 						break;
 					case SecurityAction.InheritDemand:
-						output.Write("inheritcheck", TextTokenType.Keyword);
+						output.Write("inheritcheck", TextTokenKind.Keyword);
 						break;
 					case SecurityAction.RequestMinimum:
-						output.Write("reqmin", TextTokenType.Keyword);
+						output.Write("reqmin", TextTokenKind.Keyword);
 						break;
 					case SecurityAction.RequestOptional:
-						output.Write("reqopt", TextTokenType.Keyword);
+						output.Write("reqopt", TextTokenKind.Keyword);
 						break;
 					case SecurityAction.RequestRefuse:
-						output.Write("reqrefuse", TextTokenType.Keyword);
+						output.Write("reqrefuse", TextTokenKind.Keyword);
 						break;
 					case SecurityAction.PreJitGrant:
-						output.Write("prejitgrant", TextTokenType.Keyword);
+						output.Write("prejitgrant", TextTokenKind.Keyword);
 						break;
 					case SecurityAction.PreJitDeny:
-						output.Write("prejitdeny", TextTokenType.Keyword);
+						output.Write("prejitdeny", TextTokenKind.Keyword);
 						break;
 					case SecurityAction.NonCasDemand:
-						output.Write("noncasdemand", TextTokenType.Keyword);
+						output.Write("noncasdemand", TextTokenKind.Keyword);
 						break;
 					case SecurityAction.NonCasLinkDemand:
-						output.Write("noncaslinkdemand", TextTokenType.Keyword);
+						output.Write("noncaslinkdemand", TextTokenKind.Keyword);
 						break;
 					case SecurityAction.NonCasInheritance:
-						output.Write("noncasinheritance", TextTokenType.Keyword);
+						output.Write("noncasinheritance", TextTokenKind.Keyword);
 						break;
 					default:
-						output.Write(secdecl.Action.ToString(), TextTokenType.Keyword);
+						output.Write(secdecl.Action.ToString(), TextTokenKind.Keyword);
 						break;
 				}
 				output.WriteSpace();
-				output.Write('=', TextTokenType.Operator);
+				output.Write("=", TextTokenKind.Operator);
 				output.WriteSpace();
 				output.WriteLineLeftBrace();
 				output.Indent();
 				for (int i = 0; i < secdecl.SecurityAttributes.Count; i++) {
 					SecurityAttribute sa = secdecl.SecurityAttributes[i];
 					if (sa.AttributeType != null && sa.AttributeType.Scope == sa.AttributeType.Module) {
-						output.Write("class", TextTokenType.Keyword);
+						output.Write("class", TextTokenKind.Keyword);
 						output.WriteSpace();
-						output.Write(DisassemblerHelpers.Escape(GetAssemblyQualifiedName(sa.AttributeType)), TextTokenType.Text);
+						output.Write(DisassemblerHelpers.Escape(GetAssemblyQualifiedName(sa.AttributeType)), TextTokenKind.Text);
 					} else {
 						sa.AttributeType.WriteTo(output, ILNameSyntax.TypeName);
 					}
 					output.WriteSpace();
-					output.Write('=', TextTokenType.Operator);
+					output.Write("=", TextTokenKind.Operator);
 					output.WriteSpace();
 					output.WriteLeftBrace();
 					if (sa.HasNamedArguments) {
@@ -405,14 +402,14 @@ namespace ICSharpCode.Decompiler.Disassembler
 						
 						var attrType = sa.AttributeType.ResolveTypeDef();
 						foreach (var na in sa.Fields) {
-							output.Write("field", TextTokenType.Keyword);
+							output.Write("field", TextTokenKind.Keyword);
 							output.WriteSpace();
 							WriteSecurityDeclarationArgument(attrType, na);
 							output.WriteLine();
 						}
 						
 						foreach (var na in sa.Properties) {
-							output.Write("property", TextTokenType.Keyword);
+							output.Write("property", TextTokenKind.Keyword);
 							output.WriteSpace();
 							WriteSecurityDeclarationArgument(attrType, na);
 							output.WriteLine();
@@ -423,7 +420,7 @@ namespace ICSharpCode.Decompiler.Disassembler
 					output.WriteRightBrace();
 					
 					if (i + 1< secdecl.SecurityAttributes.Count)
-						output.Write(',', TextTokenType.Operator);
+						output.Write(",", TextTokenKind.Operator);
 					output.WriteLine();
 				}
 				output.Unindent();
@@ -443,12 +440,12 @@ namespace ICSharpCode.Decompiler.Disassembler
 
 			TypeSig type = na.Argument.Type;
 			if (type != null && (type.ElementType == ElementType.Class || type.ElementType == ElementType.ValueType)) {
-				output.Write("enum", TextTokenType.Keyword);
+				output.Write("enum", TextTokenKind.Keyword);
 				output.WriteSpace();
 				if (type.Scope != type.Module) {
-					output.Write("class", TextTokenType.Keyword);
+					output.Write("class", TextTokenKind.Keyword);
 					output.WriteSpace();
-					output.Write(DisassemblerHelpers.Escape(GetAssemblyQualifiedName(type)), TextTokenType.Text);
+					output.Write(DisassemblerHelpers.Escape(GetAssemblyQualifiedName(type)), TextTokenKind.Text);
 				} else {
 					type.WriteTo(output, ILNameSyntax.TypeName);
 				}
@@ -456,16 +453,16 @@ namespace ICSharpCode.Decompiler.Disassembler
 				type.WriteTo(output);
 			}
 			output.WriteSpace();
-			output.WriteReference(DisassemblerHelpers.Escape(na.Name), reference, na.IsField ? TextTokenType.InstanceField : TextTokenType.InstanceProperty);
+			output.WriteReference(DisassemblerHelpers.Escape(na.Name), reference, na.IsField ? TextTokenKind.InstanceField : TextTokenKind.InstanceProperty);
 			output.WriteSpace();
-			output.Write('=', TextTokenType.Operator);
+			output.Write("=", TextTokenKind.Operator);
 			output.WriteSpace();
 			if (na.Argument.Value is UTF8String) {
 				// secdecls use special syntax for strings
-				output.Write("string", TextTokenType.Keyword);
-				output.Write('(', TextTokenType.Operator);
-				output.Write(string.Format("'{0}'", NRefactory.CSharp.TextWriterTokenWriter.ConvertString((UTF8String)na.Argument.Value).Replace("'", "\'")), TextTokenType.String);
-				output.Write(')', TextTokenType.Operator);
+				output.Write("string", TextTokenKind.Keyword);
+				output.Write("(", TextTokenKind.Operator);
+				output.Write(string.Format("'{0}'", NRefactory.CSharp.TextWriterTokenWriter.ConvertString((UTF8String)na.Argument.Value).Replace("'", "\'")), TextTokenKind.String);
+				output.Write(")", TextTokenKind.Operator);
 			} else {
 				WriteConstant(na.Argument.Value);
 			}
@@ -491,11 +488,11 @@ namespace ICSharpCode.Decompiler.Disassembler
 		#region WriteMarshalInfo
 		void WriteMarshalInfo(MarshalType marshalInfo)
 		{
-			output.Write("marshal", TextTokenType.Keyword);
-			output.Write('(', TextTokenType.Operator);
+			output.Write("marshal", TextTokenKind.Keyword);
+			output.Write("(", TextTokenKind.Operator);
 			if (marshalInfo != null)
 				WriteNativeType(marshalInfo.NativeType, marshalInfo);
-			output.Write(')', TextTokenType.Operator);
+			output.Write(")", TextTokenKind.Operator);
 			output.WriteSpace();
 		}
 		
@@ -505,59 +502,59 @@ namespace ICSharpCode.Decompiler.Disassembler
 				case NativeType.NotInitialized:
 					break;
 				case NativeType.Boolean:
-					output.Write("bool", TextTokenType.Keyword);
+					output.Write("bool", TextTokenKind.Keyword);
 					break;
 				case NativeType.I1:
-					output.Write("int8", TextTokenType.Keyword);
+					output.Write("int8", TextTokenKind.Keyword);
 					break;
 				case NativeType.U1:
-					output.Write("unsigned", TextTokenType.Keyword);
+					output.Write("unsigned", TextTokenKind.Keyword);
 					output.WriteSpace();
-					output.Write("int8", TextTokenType.Keyword);
+					output.Write("int8", TextTokenKind.Keyword);
 					break;
 				case NativeType.I2:
-					output.Write("int16", TextTokenType.Keyword);
+					output.Write("int16", TextTokenKind.Keyword);
 					break;
 				case NativeType.U2:
-					output.Write("unsigned", TextTokenType.Keyword);
+					output.Write("unsigned", TextTokenKind.Keyword);
 					output.WriteSpace();
-					output.Write("int16", TextTokenType.Keyword);
+					output.Write("int16", TextTokenKind.Keyword);
 					break;
 				case NativeType.I4:
-					output.Write("int32", TextTokenType.Keyword);
+					output.Write("int32", TextTokenKind.Keyword);
 					break;
 				case NativeType.U4:
-					output.Write("unsigned", TextTokenType.Keyword);
+					output.Write("unsigned", TextTokenKind.Keyword);
 					output.WriteSpace();
-					output.Write("int32", TextTokenType.Keyword);
+					output.Write("int32", TextTokenKind.Keyword);
 					break;
 				case NativeType.I8:
-					output.Write("int64", TextTokenType.Keyword);
+					output.Write("int64", TextTokenKind.Keyword);
 					break;
 				case NativeType.U8:
-					output.Write("unsigned", TextTokenType.Keyword);
+					output.Write("unsigned", TextTokenKind.Keyword);
 					output.WriteSpace();
-					output.Write("int64", TextTokenType.Keyword);
+					output.Write("int64", TextTokenKind.Keyword);
 					break;
 				case NativeType.R4:
-					output.Write("float32", TextTokenType.Keyword);
+					output.Write("float32", TextTokenKind.Keyword);
 					break;
 				case NativeType.R8:
-					output.Write("float64", TextTokenType.Keyword);
+					output.Write("float64", TextTokenKind.Keyword);
 					break;
 				case NativeType.LPStr:
-					output.Write("lpstr", TextTokenType.Keyword);
+					output.Write("lpstr", TextTokenKind.Keyword);
 					break;
 				case NativeType.Int:
-					output.Write("int", TextTokenType.Keyword);
+					output.Write("int", TextTokenKind.Keyword);
 					break;
 				case NativeType.UInt:
-					output.Write("unsigned", TextTokenType.Keyword);
+					output.Write("unsigned", TextTokenKind.Keyword);
 					output.WriteSpace();
-					output.Write("int", TextTokenType.Keyword);
+					output.Write("int", TextTokenKind.Keyword);
 					break;
 				case NativeType.Func:
-					output.Write("method", TextTokenType.Keyword);
+					output.Write("method", TextTokenKind.Keyword);
 					break;
 				case NativeType.Array:
 					ArrayMarshalType ami = marshalInfo as ArrayMarshalType;
@@ -565,69 +562,69 @@ namespace ICSharpCode.Decompiler.Disassembler
 						goto default;
 					if (ami.ElementType != NativeType.Max)
 						WriteNativeType(ami.ElementType);
-					output.Write('[', TextTokenType.Operator);
+					output.Write("[", TextTokenKind.Operator);
 					if (ami.Flags == 0) {
-						output.Write(ami.Size.ToString(), TextTokenType.Number);
+						output.Write(ami.Size.ToString(), TextTokenKind.Number);
 					} else {
 						if (ami.Size >= 0)
-							output.Write(ami.Size.ToString(), TextTokenType.Number);
+							output.Write(ami.Size.ToString(), TextTokenKind.Number);
 						output.WriteSpace();
-						output.Write('+', TextTokenType.Operator);
+						output.Write("+", TextTokenKind.Operator);
 						output.WriteSpace();
-						output.Write(ami.ParamNumber.ToString(), TextTokenType.Number);
+						output.Write(ami.ParamNumber.ToString(), TextTokenKind.Number);
 					}
-					output.Write(']', TextTokenType.Operator);
+					output.Write("]", TextTokenKind.Operator);
 					break;
 				case NativeType.Currency:
-					output.Write("currency", TextTokenType.Keyword);
+					output.Write("currency", TextTokenKind.Keyword);
 					break;
 				case NativeType.BStr:
-					output.Write("bstr", TextTokenType.Keyword);
+					output.Write("bstr", TextTokenKind.Keyword);
 					break;
 				case NativeType.LPWStr:
-					output.Write("lpwstr", TextTokenType.Keyword);
+					output.Write("lpwstr", TextTokenKind.Keyword);
 					break;
 				case NativeType.LPTStr:
-					output.Write("lptstr", TextTokenType.Keyword);
+					output.Write("lptstr", TextTokenKind.Keyword);
 					break;
 				case NativeType.FixedSysString:
 					var fsmi = marshalInfo as FixedSysStringMarshalType;
-					output.Write("fixed", TextTokenType.Keyword);
+					output.Write("fixed", TextTokenKind.Keyword);
 					output.WriteSpace();
-					output.Write("sysstring", TextTokenType.Keyword);
+					output.Write("sysstring", TextTokenKind.Keyword);
 					if (fsmi != null && fsmi.IsSizeValid) {
-						output.Write('[', TextTokenType.Operator);
-						output.Write(string.Format("{0}", fsmi.Size), TextTokenType.Number);
-						output.Write(']', TextTokenType.Operator);
+						output.Write("[", TextTokenKind.Operator);
+						output.Write(string.Format("{0}", fsmi.Size), TextTokenKind.Number);
+						output.Write("]", TextTokenKind.Operator);
 					}
 					break;
 				case NativeType.IUnknown:
 				case NativeType.IDispatch:
 				case NativeType.IntF:
 					if (nativeType == NativeType.IUnknown)
-						output.Write("iunknown", TextTokenType.Keyword);
+						output.Write("iunknown", TextTokenKind.Keyword);
 					else if (nativeType == NativeType.IDispatch)
-						output.Write("idispatch", TextTokenType.Keyword);
+						output.Write("idispatch", TextTokenKind.Keyword);
 					else if (nativeType == NativeType.IntF)
-						output.Write("interface", TextTokenType.Keyword);
+						output.Write("interface", TextTokenKind.Keyword);
 					else
 						throw new InvalidOperationException();
 					var imti = marshalInfo as InterfaceMarshalType;
 					if (imti != null && imti.IsIidParamIndexValid) {
-						output.Write('(', TextTokenType.Operator);
-						output.Write("iidparam", TextTokenType.Keyword);
+						output.Write("(", TextTokenKind.Operator);
+						output.Write("iidparam", TextTokenKind.Keyword);
 						output.WriteSpace();
-						output.Write('=', TextTokenType.Operator);
+						output.Write("=", TextTokenKind.Operator);
 						output.WriteSpace();
-						output.Write(imti.IidParamIndex.ToString(), TextTokenType.Number);
-						output.Write(')', TextTokenType.Operator);
+						output.Write(imti.IidParamIndex.ToString(), TextTokenKind.Number);
+						output.Write(")", TextTokenKind.Operator);
 					}
 					break;
 				case NativeType.Struct:
-					output.Write("struct", TextTokenType.Keyword);
+					output.Write("struct", TextTokenKind.Keyword);
 					break;
 				case NativeType.SafeArray:
-					output.Write("safearray", TextTokenType.Keyword);
+					output.Write("safearray", TextTokenKind.Keyword);
 					output.WriteSpace();
 					SafeArrayMarshalType sami = marshalInfo as SafeArrayMarshalType;
 					if (sami != null && sami.IsVariantTypeValid) {
@@ -635,168 +632,168 @@ namespace ICSharpCode.Decompiler.Disassembler
 							case VariantType.None:
 								break;
 							case VariantType.Null:
-								output.Write("null", TextTokenType.Keyword);
+								output.Write("null", TextTokenKind.Keyword);
 								break;
 							case VariantType.I2:
-								output.Write("int16", TextTokenType.Keyword);
+								output.Write("int16", TextTokenKind.Keyword);
 								break;
 							case VariantType.I4:
-								output.Write("int32", TextTokenType.Keyword);
+								output.Write("int32", TextTokenKind.Keyword);
 								break;
 							case VariantType.R4:
-								output.Write("float32", TextTokenType.Keyword);
+								output.Write("float32", TextTokenKind.Keyword);
 								break;
 							case VariantType.R8:
-								output.Write("float64", TextTokenType.Keyword);
+								output.Write("float64", TextTokenKind.Keyword);
 								break;
 							case VariantType.CY:
-								output.Write("currency", TextTokenType.Keyword);
+								output.Write("currency", TextTokenKind.Keyword);
 								break;
 							case VariantType.Date:
-								output.Write("date", TextTokenType.Keyword);
+								output.Write("date", TextTokenKind.Keyword);
 								break;
 							case VariantType.BStr:
-								output.Write("bstr", TextTokenType.Keyword);
+								output.Write("bstr", TextTokenKind.Keyword);
 								break;
 							case VariantType.Dispatch:
-								output.Write("idispatch", TextTokenType.Keyword);
+								output.Write("idispatch", TextTokenKind.Keyword);
 								break;
 							case VariantType.Error:
-								output.Write("error", TextTokenType.Keyword);
+								output.Write("error", TextTokenKind.Keyword);
 								break;
 							case VariantType.Bool:
-								output.Write("bool", TextTokenType.Keyword);
+								output.Write("bool", TextTokenKind.Keyword);
 								break;
 							case VariantType.Variant:
-								output.Write("variant", TextTokenType.Keyword);
+								output.Write("variant", TextTokenKind.Keyword);
 								break;
 							case VariantType.Unknown:
-								output.Write("iunknown", TextTokenType.Keyword);
+								output.Write("iunknown", TextTokenKind.Keyword);
 								break;
 							case VariantType.Decimal:
-								output.Write("decimal", TextTokenType.Keyword);
+								output.Write("decimal", TextTokenKind.Keyword);
 								break;
 							case VariantType.I1:
-								output.Write("int8", TextTokenType.Keyword);
+								output.Write("int8", TextTokenKind.Keyword);
 								break;
 							case VariantType.UI1:
-								output.Write("unsigned", TextTokenType.Keyword);
+								output.Write("unsigned", TextTokenKind.Keyword);
 								output.WriteSpace();
-								output.Write("int8", TextTokenType.Keyword);
+								output.Write("int8", TextTokenKind.Keyword);
 								break;
 							case VariantType.UI2:
-								output.Write("unsigned", TextTokenType.Keyword);
+								output.Write("unsigned", TextTokenKind.Keyword);
 								output.WriteSpace();
-								output.Write("int16", TextTokenType.Keyword);
+								output.Write("int16", TextTokenKind.Keyword);
 								break;
 							case VariantType.UI4:
-								output.Write("unsigned", TextTokenType.Keyword);
+								output.Write("unsigned", TextTokenKind.Keyword);
 								output.WriteSpace();
-								output.Write("int32", TextTokenType.Keyword);
+								output.Write("int32", TextTokenKind.Keyword);
 								break;
 							case VariantType.I8:
-								output.Write("int64", TextTokenType.Keyword);
+								output.Write("int64", TextTokenKind.Keyword);
 								break;
 							case VariantType.UI8:
-								output.Write("unsigned", TextTokenType.Keyword);
+								output.Write("unsigned", TextTokenKind.Keyword);
 								output.WriteSpace();
-								output.Write("int64", TextTokenType.Keyword);
+								output.Write("int64", TextTokenKind.Keyword);
 								break;
 							case VariantType.Int:
-								output.Write("int", TextTokenType.Keyword);
+								output.Write("int", TextTokenKind.Keyword);
 								break;
 							case VariantType.UInt:
-								output.Write("unsigned", TextTokenType.Keyword);
+								output.Write("unsigned", TextTokenKind.Keyword);
 								output.WriteSpace();
-								output.Write("int", TextTokenType.Keyword);
+								output.Write("int", TextTokenKind.Keyword);
 								break;
 							case VariantType.Void:
-								output.Write("void", TextTokenType.Keyword);
+								output.Write("void", TextTokenKind.Keyword);
 								break;
 							case VariantType.HResult:
-								output.Write("hresult", TextTokenType.Keyword);
+								output.Write("hresult", TextTokenKind.Keyword);
 								break;
 							case VariantType.Ptr:
-								output.Write("*", TextTokenType.Operator);
+								output.Write("*", TextTokenKind.Operator);
 								break;
 							case VariantType.SafeArray:
-								output.Write("safearray", TextTokenType.Keyword);
+								output.Write("safearray", TextTokenKind.Keyword);
 								break;
 							case VariantType.CArray:
-								output.Write("carray", TextTokenType.Keyword);
+								output.Write("carray", TextTokenKind.Keyword);
 								break;
 							case VariantType.UserDefined:
-								output.Write("userdefined", TextTokenType.Keyword);
+								output.Write("userdefined", TextTokenKind.Keyword);
 								break;
 							case VariantType.LPStr:
-								output.Write("lpstr", TextTokenType.Keyword);
+								output.Write("lpstr", TextTokenKind.Keyword);
 								break;
 							case VariantType.LPWStr:
-								output.Write("lpwstr", TextTokenType.Keyword);
+								output.Write("lpwstr", TextTokenKind.Keyword);
 								break;
 							case VariantType.Record:
-								output.Write("record", TextTokenType.Keyword);
+								output.Write("record", TextTokenKind.Keyword);
 								break;
 							case VariantType.FileTime:
-								output.Write("filetime", TextTokenType.Keyword);
+								output.Write("filetime", TextTokenKind.Keyword);
 								break;
 							case VariantType.Blob:
-								output.Write("blob", TextTokenType.Keyword);
+								output.Write("blob", TextTokenKind.Keyword);
 								break;
 							case VariantType.Stream:
-								output.Write("stream", TextTokenType.Keyword);
+								output.Write("stream", TextTokenKind.Keyword);
 								break;
 							case VariantType.Storage:
-								output.Write("storage", TextTokenType.Keyword);
+								output.Write("storage", TextTokenKind.Keyword);
 								break;
 							case VariantType.StreamedObject:
-								output.Write("streamed_object", TextTokenType.Keyword);
+								output.Write("streamed_object", TextTokenKind.Keyword);
 								break;
 							case VariantType.StoredObject:
-								output.Write("stored_object", TextTokenType.Keyword);
+								output.Write("stored_object", TextTokenKind.Keyword);
 								break;
 							case VariantType.BlobObject:
-								output.Write("blob_object", TextTokenType.Keyword);
+								output.Write("blob_object", TextTokenKind.Keyword);
 								break;
 							case VariantType.CF:
-								output.Write("cf", TextTokenType.Keyword);
+								output.Write("cf", TextTokenKind.Keyword);
 								break;
 							case VariantType.CLSID:
-								output.Write("clsid", TextTokenType.Keyword);
+								output.Write("clsid", TextTokenKind.Keyword);
 								break;
 							case VariantType.IntPtr:
 							case VariantType.UIntPtr:
 							case VariantType.VersionedStream:
 							case VariantType.BStrBlob:
 							default:
-								output.Write((sami.VariantType & VariantType.TypeMask).ToString(), TextTokenType.Keyword);
+								output.Write((sami.VariantType & VariantType.TypeMask).ToString(), TextTokenKind.Keyword);
 								break;
 						}
 						if ((sami.VariantType & VariantType.ByRef) != 0)
-							output.Write("&", TextTokenType.Operator);
+							output.Write("&", TextTokenKind.Operator);
 						if ((sami.VariantType & VariantType.Array) != 0)
-							output.Write("[]", TextTokenType.Operator);
+							output.Write("[]", TextTokenKind.Operator);
 						if ((sami.VariantType & VariantType.Vector) != 0) {
 							output.WriteSpace();
-							output.Write("vector", TextTokenType.Keyword);
+							output.Write("vector", TextTokenKind.Keyword);
 						}
 						if (sami.IsUserDefinedSubTypeValid) {
-							output.Write(',', TextTokenType.Operator);
+							output.Write(",", TextTokenKind.Operator);
 							output.WriteSpace();
-							output.Write("\"" + NRefactory.CSharp.TextWriterTokenWriter.ConvertString(sami.UserDefinedSubType.FullName) + "\"", TextTokenType.String);
+							output.Write("\"" + NRefactory.CSharp.TextWriterTokenWriter.ConvertString(sami.UserDefinedSubType.FullName) + "\"", TextTokenKind.String);
 						}
 					}
 					break;
 				case NativeType.FixedArray:
-					output.Write("fixed", TextTokenType.Keyword);
+					output.Write("fixed", TextTokenKind.Keyword);
 					output.WriteSpace();
-					output.Write("array", TextTokenType.Keyword);
+					output.Write("array", TextTokenKind.Keyword);
 					FixedArrayMarshalType fami = marshalInfo as FixedArrayMarshalType;
 					if (fami != null) {
 						if (fami.IsSizeValid) {
-							output.Write('[', TextTokenType.Operator);
-							output.Write(fami.Size.ToString(), TextTokenType.Number);
-							output.Write(']', TextTokenType.Operator);
+							output.Write("[", TextTokenKind.Operator);
+							output.Write(fami.Size.ToString(), TextTokenKind.Number);
+							output.Write("]", TextTokenKind.Operator);
 						}
 						if (fami.IsElementTypeValid) {
 							output.WriteSpace();
@@ -805,80 +802,80 @@ namespace ICSharpCode.Decompiler.Disassembler
 					}
 					break;
 				case NativeType.ByValStr:
-					output.Write("byvalstr", TextTokenType.Keyword);
+					output.Write("byvalstr", TextTokenKind.Keyword);
 					break;
 				case NativeType.ANSIBStr:
-					output.Write("ansi", TextTokenType.Keyword);
+					output.Write("ansi", TextTokenKind.Keyword);
 					output.WriteSpace();
-					output.Write("bstr", TextTokenType.Keyword);
+					output.Write("bstr", TextTokenKind.Keyword);
 					break;
 				case NativeType.TBStr:
-					output.Write("tbstr", TextTokenType.Keyword);
+					output.Write("tbstr", TextTokenKind.Keyword);
 					break;
 				case NativeType.VariantBool:
-					output.Write("variant", TextTokenType.Keyword);
+					output.Write("variant", TextTokenKind.Keyword);
 					output.WriteSpace();
-					output.Write("bool", TextTokenType.Keyword);
+					output.Write("bool", TextTokenKind.Keyword);
 					break;
 				case NativeType.ASAny:
-					output.Write("as", TextTokenType.Keyword);
+					output.Write("as", TextTokenKind.Keyword);
 					output.WriteSpace();
-					output.Write("any", TextTokenType.Keyword);
+					output.Write("any", TextTokenKind.Keyword);
 					break;
 				case NativeType.LPStruct:
-					output.Write("lpstruct", TextTokenType.Keyword);
+					output.Write("lpstruct", TextTokenKind.Keyword);
 					break;
 				case NativeType.CustomMarshaler:
 					CustomMarshalType cmi = marshalInfo as CustomMarshalType;
 					if (cmi == null)
 						goto default;
-					output.Write("custom", TextTokenType.Keyword);
-					output.Write('(', TextTokenType.Operator);
-					output.Write(string.Format("\"{0}\"", NRefactory.CSharp.TextWriterTokenWriter.ConvertString(cmi.CustomMarshaler == null ? string.Empty : cmi.CustomMarshaler.FullName)), TextTokenType.String);
-					output.Write(',', TextTokenType.Operator);
+					output.Write("custom", TextTokenKind.Keyword);
+					output.Write("(", TextTokenKind.Operator);
+					output.Write(string.Format("\"{0}\"", NRefactory.CSharp.TextWriterTokenWriter.ConvertString(cmi.CustomMarshaler == null ? string.Empty : cmi.CustomMarshaler.FullName)), TextTokenKind.String);
+					output.Write(",", TextTokenKind.Operator);
 					output.WriteSpace();
-					output.Write(string.Format("\"{0}\"", NRefactory.CSharp.TextWriterTokenWriter.ConvertString(cmi.Cookie)), TextTokenType.String);
+					output.Write(string.Format("\"{0}\"", NRefactory.CSharp.TextWriterTokenWriter.ConvertString(cmi.Cookie)), TextTokenKind.String);
 					if (!UTF8String.IsNullOrEmpty(cmi.Guid) || !UTF8String.IsNullOrEmpty(cmi.NativeTypeName)) {
-						output.Write(',', TextTokenType.Operator);
+						output.Write(",", TextTokenKind.Operator);
 						output.WriteSpace();
-						output.Write(string.Format("\"{0}\"", NRefactory.CSharp.TextWriterTokenWriter.ConvertString(cmi.Guid)), TextTokenType.String);
-						output.Write(',', TextTokenType.Operator);
+						output.Write(string.Format("\"{0}\"", NRefactory.CSharp.TextWriterTokenWriter.ConvertString(cmi.Guid)), TextTokenKind.String);
+						output.Write(",", TextTokenKind.Operator);
 						output.WriteSpace();
-						output.Write(string.Format("\"{0}\"", NRefactory.CSharp.TextWriterTokenWriter.ConvertString(cmi.NativeTypeName)), TextTokenType.String);
+						output.Write(string.Format("\"{0}\"", NRefactory.CSharp.TextWriterTokenWriter.ConvertString(cmi.NativeTypeName)), TextTokenKind.String);
 					}
-					output.Write(')', TextTokenType.Operator);
+					output.Write(")", TextTokenKind.Operator);
 					break;
 				case NativeType.Error:
-					output.Write("error", TextTokenType.Keyword);
+					output.Write("error", TextTokenKind.Keyword);
 					break;
 				case NativeType.Void:
-					output.Write("void", TextTokenType.Keyword);
+					output.Write("void", TextTokenKind.Keyword);
 					break;
 				case NativeType.SysChar:
-					output.Write("syschar", TextTokenType.Keyword);
+					output.Write("syschar", TextTokenKind.Keyword);
 					break;
 				case NativeType.Variant:
-					output.Write("variant", TextTokenType.Keyword);
+					output.Write("variant", TextTokenKind.Keyword);
 					break;
 				case NativeType.Decimal:
-					output.Write("decimal", TextTokenType.Keyword);
+					output.Write("decimal", TextTokenKind.Keyword);
 					break;
 				case NativeType.Date:
-					output.Write("date", TextTokenType.Keyword);
+					output.Write("date", TextTokenKind.Keyword);
 					break;
 				case NativeType.ObjectRef:
-					output.Write("objectref", TextTokenType.Keyword);
+					output.Write("objectref", TextTokenKind.Keyword);
 					break;
 				case NativeType.NestedStruct:
-					output.Write("nested", TextTokenType.Keyword);
+					output.Write("nested", TextTokenKind.Keyword);
 					output.WriteSpace();
-					output.Write("struct", TextTokenType.Keyword);
+					output.Write("struct", TextTokenKind.Keyword);
 					break;
 				case NativeType.Ptr:
 				case NativeType.IInspectable:
 				case NativeType.HString:
 				default:
-					output.Write(nativeType.ToString(), TextTokenType.Keyword);
+					output.Write(nativeType.ToString(), TextTokenKind.Keyword);
 					break;
 			}
 		}
@@ -893,21 +890,21 @@ namespace ICSharpCode.Decompiler.Disassembler
 				var paramDef = p.ParamDef;
 				if (paramDef != null) {
 					if (paramDef.IsIn) {
-						output.Write('[', TextTokenType.Operator);
-						output.Write("in", TextTokenType.Keyword);
-						output.Write(']', TextTokenType.Operator);
+						output.Write("[", TextTokenKind.Operator);
+						output.Write("in", TextTokenKind.Keyword);
+						output.Write("]", TextTokenKind.Operator);
 						output.WriteSpace();
 					}
 					if (paramDef.IsOut) {
-						output.Write('[', TextTokenType.Operator);
-						output.Write("out", TextTokenType.Keyword);
-						output.Write(']', TextTokenType.Operator);
+						output.Write("[", TextTokenKind.Operator);
+						output.Write("out", TextTokenKind.Keyword);
+						output.Write("]", TextTokenKind.Operator);
 						output.WriteSpace();
 					}
 					if (paramDef.IsOptional) {
-						output.Write('[', TextTokenType.Operator);
-						output.Write("opt", TextTokenType.Keyword);
-						output.Write(']', TextTokenType.Operator);
+						output.Write("[", TextTokenKind.Operator);
+						output.Write("opt", TextTokenKind.Keyword);
+						output.Write("]", TextTokenKind.Operator);
 						output.WriteSpace();
 					}
 				}
@@ -916,9 +913,9 @@ namespace ICSharpCode.Decompiler.Disassembler
 				if (paramDef != null && paramDef.MarshalType != null) {
 					WriteMarshalInfo(paramDef.MarshalType);
 				}
-				output.WriteDefinition(DisassemblerHelpers.Escape(p.Name), p, TextTokenType.Parameter);
+				output.WriteDefinition(DisassemblerHelpers.Escape(p.Name), p, TextTokenKind.Parameter);
 				if (i < parameters.Count - 1)
-					output.Write(',', TextTokenType.Operator);
+					output.Write(",", TextTokenKind.Operator);
 				output.WriteLine();
 			}
 		}
@@ -928,18 +925,18 @@ namespace ICSharpCode.Decompiler.Disassembler
 			return p.ParamDef != null && (p.ParamDef.HasConstant || p.ParamDef.HasCustomAttributes);
 		}
 		
-		void WriteParameterAttributes(Parameter p)
+		void WriteParameterAttributes(int index, Parameter p)
 		{
 			if (!HasParameterAttributes(p))
 				return;
-			output.Write(".param", TextTokenType.ILDirective);
+			output.Write(".param", TextTokenKind.ILDirective);
 			output.WriteSpace();
-			output.Write('[', TextTokenType.Operator);
-			output.Write(string.Format("{0}", p.MethodSigIndex + 1), TextTokenType.Number);
-			output.Write(']', TextTokenType.Operator);
+			output.Write("[", TextTokenKind.Operator);
+			output.Write(string.Format("{0}", index), TextTokenKind.Number);
+			output.Write("]", TextTokenKind.Operator);
 			if (p.HasParamDef && p.ParamDef.HasConstant) {
 				output.WriteSpace();
-				output.Write('=', TextTokenType.Operator);
+				output.Write("=", TextTokenKind.Operator);
 				output.WriteSpace();
 				WriteConstant(p.ParamDef.Constant.Value);
 			}
@@ -951,23 +948,23 @@ namespace ICSharpCode.Decompiler.Disassembler
 		void WriteConstant(object constant)
 		{
 			if (constant == null) {
-				output.Write("nullref", TextTokenType.Keyword);
+				output.Write("nullref", TextTokenKind.Keyword);
 			} else {
 				TypeSig typeSig;
 				string typeName = DisassemblerHelpers.PrimitiveTypeName(constant.GetType().FullName, options.OwnerModule, out typeSig);
 				if (typeName != null && typeName != "string") {
 					DisassemblerHelpers.WriteKeyword(output, typeName, typeSig.ToTypeDefOrRef());
-					output.Write('(', TextTokenType.Operator);
+					output.Write("(", TextTokenKind.Operator);
 					float? cf = constant as float?;
 					double? cd = constant as double?;
 					if (cf.HasValue && (float.IsNaN(cf.Value) || float.IsInfinity(cf.Value))) {
-						output.Write(string.Format("0x{0:x8}", BitConverter.ToInt32(BitConverter.GetBytes(cf.Value), 0)), TextTokenType.Number);
+						output.Write(string.Format("0x{0:x8}", BitConverter.ToInt32(BitConverter.GetBytes(cf.Value), 0)), TextTokenKind.Number);
 					} else if (cd.HasValue && (double.IsNaN(cd.Value) || double.IsInfinity(cd.Value))) {
-						output.Write(string.Format("0x{0:x16}", BitConverter.DoubleToInt64Bits(cd.Value)), TextTokenType.Number);
+						output.Write(string.Format("0x{0:x16}", BitConverter.DoubleToInt64Bits(cd.Value)), TextTokenKind.Number);
 					} else {
 						DisassemblerHelpers.WriteOperand(output, constant);
 					}
-					output.Write(')', TextTokenType.Operator);
+					output.Write(")", TextTokenKind.Operator);
 				} else {
 					DisassemblerHelpers.WriteOperand(output, constant);
 				}
@@ -998,12 +995,12 @@ namespace ICSharpCode.Decompiler.Disassembler
 		{
 			WriteXmlDocComment(field);
 			AddComment(field);
-			output.WriteDefinition(".field", field, TextTokenType.ILDirective, false);
+			output.WriteDefinition(".field", field, TextTokenKind.ILDirective, false);
 			output.WriteSpace();
 			if (field.HasLayoutInfo && field.FieldOffset.HasValue) {
-				output.Write('[', TextTokenType.Operator);
-				output.Write(string.Format("{0}", field.FieldOffset), TextTokenType.Number);
-				output.Write(']', TextTokenType.Operator);
+				output.Write("[", TextTokenKind.Operator);
+				output.Write(string.Format("{0}", field.FieldOffset), TextTokenKind.Number);
+				output.Write("]", TextTokenKind.Operator);
 				output.WriteSpace();
 			}
 			WriteEnum(field.Attributes & FieldAttributes.FieldAccessMask, fieldVisibility);
@@ -1014,29 +1011,27 @@ namespace ICSharpCode.Decompiler.Disassembler
 			}
 			field.FieldType.WriteTo(output);
 			output.WriteSpace();
-			output.Write(DisassemblerHelpers.Escape(field.Name), TextTokenHelper.GetTextTokenType(field));
+			output.Write(DisassemblerHelpers.Escape(field.Name), TextTokenKindUtils.GetTextTokenType(field));
 			if ((field.Attributes & FieldAttributes.HasFieldRVA) == FieldAttributes.HasFieldRVA) {
 				output.WriteSpace();
-				output.Write("at", TextTokenType.Keyword);
+				output.Write("at", TextTokenKind.Keyword);
 				output.WriteSpace();
-				output.Write(string.Format("I_{0:x8}", (uint)field.RVA), TextTokenType.Text);
+				output.Write(string.Format("I_{0:x8}", (uint)field.RVA), TextTokenKind.Text);
 				uint fieldSize;
 				if (field.GetFieldSize(out fieldSize)) {
 					output.WriteSpace();
-					output.Write(string.Format("// {0} (0x{0:x4}) bytes", fieldSize), TextTokenType.Comment);
+					output.Write(string.Format("// {0} (0x{0:x4}) bytes", fieldSize), TextTokenKind.Comment);
 				}
 			}
 			if (field.HasConstant) {
 				output.WriteSpace();
-				output.Write('=', TextTokenType.Operator);
+				output.Write("=", TextTokenKind.Operator);
 				output.WriteSpace();
 				WriteConstant(field.Constant.Value);
 			}
 			output.WriteLine();
 			if (field.HasCustomAttributes) {
-				output.MarkFoldStart();
 				WriteAttributes(field.CustomAttributes);
-				output.MarkFoldEnd();
 			}
 		}
 		#endregion
@@ -1055,18 +1050,18 @@ namespace ICSharpCode.Decompiler.Disassembler
 			
 			WriteXmlDocComment(property);
 			AddComment(property);
-			output.WriteDefinition(".property", property, TextTokenType.ILDirective, false);
+			output.WriteDefinition(".property", property, TextTokenKind.ILDirective, false);
 			output.WriteSpace();
 			WriteFlags(property.Attributes, propertyAttributes);
 			if (property.PropertySig != null && property.PropertySig.HasThis) {
-				output.Write("instance", TextTokenType.Keyword);
+				output.Write("instance", TextTokenKind.Keyword);
 				output.WriteSpace();
 			}
 			property.PropertySig.GetRetType().WriteTo(output);
 			output.WriteSpace();
-			output.Write(DisassemblerHelpers.Escape(property.Name), TextTokenHelper.GetTextTokenType(property));
+			output.Write(DisassemblerHelpers.Escape(property.Name), TextTokenKindUtils.GetTextTokenType(property));
 			
-			output.Write('(', TextTokenType.Operator);
+			output.Write("(", TextTokenKind.Operator);
 			var parameters = new List<Parameter>(property.GetParameters());
 			if (parameters.GetNumberOfNormalParameters() > 0) {
 				output.WriteLine();
@@ -1074,7 +1069,7 @@ namespace ICSharpCode.Decompiler.Disassembler
 				WriteParameters(parameters);
 				output.Unindent();
 			}
-			output.Write(')', TextTokenType.Operator);
+			output.Write(")", TextTokenKind.Operator);
 
 			if (full) {
 				OpenBlock(false);
@@ -1094,14 +1089,14 @@ namespace ICSharpCode.Decompiler.Disassembler
 
 				if (property.GetMethods.Count > 0) {
 					output.WriteSpace();
-					output.Write(".get", TextTokenType.Keyword);
-					output.Write(';', TextTokenType.Operator);
+					output.Write(".get", TextTokenKind.Keyword);
+					output.Write(";", TextTokenKind.Operator);
 				}
 
 				if (property.SetMethods.Count > 0) {
 					output.WriteSpace();
-					output.Write(".set", TextTokenType.Keyword);
-					output.Write(';', TextTokenType.Operator);
+					output.Write(".set", TextTokenKind.Keyword);
+					output.Write(";", TextTokenKind.Operator);
 				}
 
 				output.WriteSpace();
@@ -1115,7 +1110,7 @@ namespace ICSharpCode.Decompiler.Disassembler
 				return;
 			
 			AddComment(method);
-			output.Write(keyword, TextTokenType.ILDirective);
+			output.Write(keyword, TextTokenKind.ILDirective);
 			output.WriteSpace();
 			method.WriteMethodTo(output);
 			output.WriteLine();
@@ -1135,12 +1130,12 @@ namespace ICSharpCode.Decompiler.Disassembler
 			
 			WriteXmlDocComment(ev);
 			AddComment(ev);
-			output.WriteDefinition(".event", ev, TextTokenType.ILDirective, false);
+			output.WriteDefinition(".event", ev, TextTokenKind.ILDirective, false);
 			output.WriteSpace();
 			WriteFlags(ev.Attributes, eventAttributes);
 			ev.EventType.WriteTo(output, ILNameSyntax.TypeName);
 			output.WriteSpace();
-			output.Write(DisassemblerHelpers.Escape(ev.Name), TextTokenHelper.GetTextTokenType(ev));
+			output.Write(DisassemblerHelpers.Escape(ev.Name), TextTokenKindUtils.GetTextTokenType(ev));
 
 			if (full) {
 				OpenBlock(false);
@@ -1159,20 +1154,20 @@ namespace ICSharpCode.Decompiler.Disassembler
 
 				if (ev.AddMethod != null) {
 					output.WriteSpace();
-					output.Write(".addon", TextTokenType.Keyword);
-					output.Write(';', TextTokenType.Operator);
+					output.Write(".addon", TextTokenKind.Keyword);
+					output.Write(";", TextTokenKind.Operator);
 				}
 
 				if (ev.RemoveMethod != null) {
 					output.WriteSpace();
-					output.Write(".removeon", TextTokenType.Keyword);
-					output.Write(';', TextTokenType.Operator);
+					output.Write(".removeon", TextTokenKind.Keyword);
+					output.Write(";", TextTokenKind.Operator);
 				}
 
 				if (ev.InvokeMethod != null) {
 					output.WriteSpace();
-					output.Write(".fire", TextTokenType.Keyword);
-					output.Write(';', TextTokenType.Operator);
+					output.Write(".fire", TextTokenKind.Keyword);
+					output.Write(";", TextTokenKind.Operator);
 				}
 
 				output.WriteSpace();
@@ -1216,12 +1211,44 @@ namespace ICSharpCode.Decompiler.Disassembler
 			{ TypeAttributes.HasSecurity, null },
 		};
 
-		void AddTokenComment(IMDTokenProvider member)
+		void AddTokenComment(IMDTokenProvider member, string extra = null)
 		{
 			if (!options.ShowTokenAndRvaComments)
 				return;
 
-			output.WriteLine(string.Format("// Token: 0x{0:X8} RID: {1}", member.MDToken.Raw, member.MDToken.Rid), TextTokenType.Comment);
+			StartComment();
+			WriteToken(member);
+			output.WriteLine();
+		}
+
+		void StartComment()
+		{
+			output.Write("//", TextTokenKind.Comment);
+		}
+
+		void WriteToken(IMDTokenProvider member)
+		{
+			output.Write(" Token: ", TextTokenKind.Comment);
+			output.WriteReference(string.Format("0x{0:X8}", member.MDToken.Raw), new TokenReference(options.OwnerModule, member.MDToken.Raw), TextTokenKind.Comment, false);
+			output.Write(" RID: ", TextTokenKind.Comment);
+			output.Write(string.Format("{0}", member.MDToken.Rid), TextTokenKind.Comment);
+		}
+
+		void WriteRVA(IMemberDef member)
+		{
+			uint rva;
+			long fileOffset;
+			member.GetRVA(out rva, out fileOffset);
+			string extra = string.Empty;
+			if (rva == 0)
+				return;
+
+			var mod = member.Module;
+			var filename = mod == null ? null : mod.Location;
+			output.Write(" RVA: ", TextTokenKind.Comment);
+			output.WriteReference(string.Format("0x{0:X8}", rva), new AddressReference(filename, true, rva, 0), TextTokenKind.Comment, false);
+			output.Write(" File Offset: ", TextTokenKind.Comment);
+			output.WriteReference(string.Format("0x{0:X8}", fileOffset), new AddressReference(filename, false, (ulong)fileOffset, 0), TextTokenKind.Comment, false);
 		}
 
 		void AddComment(IMemberDef member)
@@ -1229,12 +1256,10 @@ namespace ICSharpCode.Decompiler.Disassembler
 			if (!options.ShowTokenAndRvaComments)
 				return;
 
-			AddTokenComment(member);
-			uint rva;
-			long fileOffset;
-			member.GetRVA(out rva, out fileOffset);
-			if (rva != 0)
-				output.WriteLine(string.Format("// RVA: 0x{0:X8} File Offset: 0x{1:X8}", rva, fileOffset), TextTokenType.Comment);
+			StartComment();
+			WriteToken(member);
+			WriteRVA(member);
+			output.WriteLine();
 		}
 		
 		public void DisassembleType(TypeDef type)
@@ -1242,11 +1267,11 @@ namespace ICSharpCode.Decompiler.Disassembler
 			// start writing IL
 			WriteXmlDocComment(type);
 			AddComment(type);
-			output.WriteDefinition(".class", type, TextTokenType.ILDirective, false);
+			output.WriteDefinition(".class", type, TextTokenKind.ILDirective, false);
 			output.WriteSpace();
 			
 			if ((type.Attributes & TypeAttributes.ClassSemanticMask) == TypeAttributes.Interface) {
-				output.Write("interface", TextTokenType.Keyword);
+				output.Write("interface", TextTokenKind.Keyword);
 				output.WriteSpace();
 			}
 			WriteEnum(type.Attributes & TypeAttributes.VisibilityMask, typeVisibility);
@@ -1255,14 +1280,13 @@ namespace ICSharpCode.Decompiler.Disassembler
 			const TypeAttributes masks = TypeAttributes.ClassSemanticMask | TypeAttributes.VisibilityMask | TypeAttributes.LayoutMask | TypeAttributes.StringFormatMask;
 			WriteFlags(type.Attributes & ~masks, typeAttributes);
 			
-			output.Write(DisassemblerHelpers.Escape(type.DeclaringType != null ? type.Name.String : type.FullName), TextTokenHelper.GetTextTokenType(type));
+			output.Write(DisassemblerHelpers.Escape(type.DeclaringType != null ? type.Name.String : type.FullName), TextTokenKindUtils.GetTextTokenType(type));
 			WriteTypeParameters(output, type);
-			output.MarkFoldStart(defaultCollapsed: isInType);
 			output.WriteLine();
 			
 			if (type.BaseType != null) {
 				output.Indent();
-				output.Write("extends", TextTokenType.Keyword);
+				output.Write("extends", TextTokenKind.Keyword);
 				output.WriteSpace();
 				type.BaseType.WriteTo(output, ILNameSyntax.TypeName);
 				output.WriteLine();
@@ -1272,13 +1296,13 @@ namespace ICSharpCode.Decompiler.Disassembler
 				output.Indent();
 				for (int index = 0; index < type.Interfaces.Count; index++) {
 					if (index > 0)
-						output.WriteLine(",", TextTokenType.Operator);
+						output.WriteLine(",", TextTokenKind.Operator);
 					if (index == 0) {
-						output.Write("implements", TextTokenType.Keyword);
+						output.Write("implements", TextTokenKind.Keyword);
 						output.WriteSpace();
 					}
 					else
-						output.Write("           ", TextTokenType.Text);
+						output.Write("           ", TextTokenKind.Text);
 					type.Interfaces[index].Interface.WriteTo(output, ILNameSyntax.TypeName);
 				}
 				output.WriteLine();
@@ -1292,16 +1316,16 @@ namespace ICSharpCode.Decompiler.Disassembler
 			WriteAttributes(type.CustomAttributes);
 			WriteSecurityDeclarations(type);
 			if (type.HasClassLayout) {
-				output.Write(".pack", TextTokenType.ILDirective);
+				output.Write(".pack", TextTokenKind.ILDirective);
 				output.WriteSpace();
-				output.WriteLine(string.Format("{0}", type.PackingSize), TextTokenType.Number);
-				output.Write(".size", TextTokenType.ILDirective);
+				output.WriteLine(string.Format("{0}", type.PackingSize), TextTokenKind.Number);
+				output.Write(".size", TextTokenKind.ILDirective);
 				output.WriteSpace();
-				output.WriteLine(string.Format("{0}", type.ClassSize), TextTokenType.Number);
+				output.WriteLine(string.Format("{0}", type.ClassSize), TextTokenKind.Number);
 				output.WriteLine();
 			}
 			if (type.HasNestedTypes) {
-				output.WriteLine("// Nested Types", TextTokenType.Comment);
+				output.WriteLine("// Nested Types", TextTokenKind.Comment);
 				foreach (var nestedType in type.GetNestedTypes(options.SortMembers)) {
 					options.CancellationToken.ThrowIfCancellationRequested();
 					DisassembleType(nestedType);
@@ -1310,7 +1334,7 @@ namespace ICSharpCode.Decompiler.Disassembler
 				output.WriteLine();
 			}
 			if (type.HasFields) {
-				output.WriteLine("// Fields", TextTokenType.Comment);
+				output.WriteLine("// Fields", TextTokenKind.Comment);
 				foreach (var field in type.GetFields(options.SortMembers)) {
 					options.CancellationToken.ThrowIfCancellationRequested();
 					DisassembleField(field);
@@ -1318,7 +1342,7 @@ namespace ICSharpCode.Decompiler.Disassembler
 				output.WriteLine();
 			}
 			if (type.HasMethods) {
-				output.WriteLine("// Methods", TextTokenType.Comment);
+				output.WriteLine("// Methods", TextTokenKind.Comment);
 				foreach (var m in type.GetMethods(options.SortMembers)) {
 					options.CancellationToken.ThrowIfCancellationRequested();
 					DisassembleMethod(m);
@@ -1326,16 +1350,15 @@ namespace ICSharpCode.Decompiler.Disassembler
 				}
 			}
 			if (type.HasEvents) {
-				output.WriteLine("// Events", TextTokenType.Comment);
+				output.WriteLine("// Events", TextTokenKind.Comment);
 				foreach (var ev in type.GetEvents(options.SortMembers)) {
 					options.CancellationToken.ThrowIfCancellationRequested();
 					DisassembleEvent(ev);
 					output.WriteLine();
 				}
-				output.WriteLine();
 			}
 			if (type.HasProperties) {
-				output.WriteLine("// Properties", TextTokenType.Comment);
+				output.WriteLine("// Properties", TextTokenKind.Comment);
 				foreach (var prop in type.GetProperties(options.SortMembers)) {
 					options.CancellationToken.ThrowIfCancellationRequested();
 					DisassembleProperty(prop);
@@ -1349,44 +1372,44 @@ namespace ICSharpCode.Decompiler.Disassembler
 		void WriteTypeParameters(ITextOutput output, ITypeOrMethodDef p)
 		{
 			if (p.HasGenericParameters) {
-				output.Write('<', TextTokenType.Operator);
+				output.Write("<", TextTokenKind.Operator);
 				for (int i = 0; i < p.GenericParameters.Count; i++) {
 					if (i > 0) {
-						output.Write(',', TextTokenType.Operator);
+						output.Write(",", TextTokenKind.Operator);
 						output.WriteSpace();
 					}
 					GenericParam gp = p.GenericParameters[i];
 					if (gp.HasReferenceTypeConstraint) {
-						output.Write("class", TextTokenType.Keyword);
+						output.Write("class", TextTokenKind.Keyword);
 						output.WriteSpace();
 					} else if (gp.HasNotNullableValueTypeConstraint) {
-						output.Write("valuetype", TextTokenType.Keyword);
+						output.Write("valuetype", TextTokenKind.Keyword);
 						output.WriteSpace();
 					}
 					if (gp.HasDefaultConstructorConstraint) {
-						output.Write(".ctor", TextTokenType.Keyword);
+						output.Write(".ctor", TextTokenKind.Keyword);
 						output.WriteSpace();
 					}
 					if (gp.HasGenericParamConstraints) {
-						output.Write('(', TextTokenType.Operator);
+						output.Write("(", TextTokenKind.Operator);
 						for (int j = 0; j < gp.GenericParamConstraints.Count; j++) {
 							if (j > 0) {
-								output.Write(',', TextTokenType.Operator);
+								output.Write(",", TextTokenKind.Operator);
 								output.WriteSpace();
 							}
 							gp.GenericParamConstraints[j].Constraint.WriteTo(output, ILNameSyntax.TypeName);
 						}
-						output.Write(')', TextTokenType.Operator);
+						output.Write(")", TextTokenKind.Operator);
 						output.WriteSpace();
 					}
 					if (gp.IsContravariant) {
-						output.Write('-', TextTokenType.Operator);
+						output.Write("-", TextTokenKind.Operator);
 					} else if (gp.IsCovariant) {
-						output.Write('+', TextTokenType.Operator);
+						output.Write("+", TextTokenKind.Operator);
 					}
-					output.Write(DisassemblerHelpers.Escape(gp.Name), TextTokenHelper.GetTextTokenType(gp));
+					output.Write(DisassemblerHelpers.Escape(gp.Name), TextTokenKindUtils.GetTextTokenType(gp));
 				}
-				output.Write('>', TextTokenType.Operator);
+				output.Write(">", TextTokenKind.Operator);
 			}
 		}
 		#endregion
@@ -1395,13 +1418,13 @@ namespace ICSharpCode.Decompiler.Disassembler
 		void WriteAttributes(CustomAttributeCollection attributes)
 		{
 			foreach (CustomAttribute a in attributes) {
-				output.Write(".custom", TextTokenType.ILDirective);
+				output.Write(".custom", TextTokenKind.ILDirective);
 				output.WriteSpace();
 				a.Constructor.WriteMethodTo(output);
 				byte[] blob = a.GetBlob();
 				if (blob != null) {
 					output.WriteSpace();
-					output.Write('=', TextTokenType.Operator);
+					output.Write("=", TextTokenKind.Operator);
 					output.WriteSpace();
 					WriteBlob(blob);
 				}
@@ -1411,7 +1434,7 @@ namespace ICSharpCode.Decompiler.Disassembler
 		
 		void WriteBlob(byte[] blob)
 		{
-			output.Write('(', TextTokenType.Operator);
+			output.Write("(", TextTokenKind.Operator);
 			output.Indent();
 
 			for (int i = 0; i < blob.Length; i++) {
@@ -1420,17 +1443,16 @@ namespace ICSharpCode.Decompiler.Disassembler
 				} else {
 					output.WriteSpace();
 				}
-				output.Write(blob[i].ToString("x2"), TextTokenType.Number);
+				output.Write(blob[i].ToString("x2"), TextTokenKind.Number);
 			}
 			
 			output.WriteLine();
 			output.Unindent();
-			output.Write(')', TextTokenType.Operator);
+			output.Write(")", TextTokenKind.Operator);
 		}
 		
 		void OpenBlock(bool defaultCollapsed)
 		{
-			output.MarkFoldStart(defaultCollapsed: defaultCollapsed);
 			output.WriteLine();
 			output.WriteLineLeftBrace();
 			output.Indent();
@@ -1442,9 +1464,8 @@ namespace ICSharpCode.Decompiler.Disassembler
 			output.WriteRightBrace();
 			if (comment != null) {
 				output.WriteSpace();
-				output.Write("// " + comment, TextTokenType.Comment);
+				output.Write("// " + comment, TextTokenKind.Comment);
 			}
-			output.MarkFoldEnd();
 			output.WriteLine();
 		}
 		
@@ -1456,13 +1477,13 @@ namespace ICSharpCode.Decompiler.Disassembler
 				tested |= pair.Key;
 				if ((val & pair.Key) != 0 && pair.Value != null) {
 					foreach (var kv in pair.Value.Split(' ')) {
-						output.Write(kv, TextTokenType.Keyword);
+						output.Write(kv, TextTokenKind.Keyword);
 						output.WriteSpace();
 					}
 				}
 			}
 			if ((val & ~tested) != 0) {
-				output.Write(string.Format("flag({0:x4})", val & ~tested), TextTokenType.Keyword);
+				output.Write(string.Format("flag({0:x4})", val & ~tested), TextTokenKind.Keyword);
 				output.WriteSpace();
 			}
 		}
@@ -1474,7 +1495,7 @@ namespace ICSharpCode.Decompiler.Disassembler
 				if (pair.Key == val) {
 					if (pair.Value != null) {
 						foreach (var kv in pair.Value.Split(' ')) {
-							output.Write(kv, TextTokenType.Keyword);
+							output.Write(kv, TextTokenKind.Keyword);
 							output.WriteSpace();
 						}
 					}
@@ -1482,7 +1503,7 @@ namespace ICSharpCode.Decompiler.Disassembler
 				}
 			}
 			if (val != 0) {
-				output.Write(string.Format("flag({0:x4})", val), TextTokenType.Keyword);
+				output.Write(string.Format("flag({0:x4})", val), TextTokenKind.Keyword);
 				output.WriteSpace();
 			}
 			
@@ -1512,10 +1533,10 @@ namespace ICSharpCode.Decompiler.Disassembler
 		public void DisassembleNamespace(string nameSpace, IEnumerable<TypeDef> types)
 		{
 			if (!string.IsNullOrEmpty(nameSpace)) {
-				output.Write(".namespace", TextTokenType.ILDirective);
+				output.Write(".namespace", TextTokenKind.ILDirective);
 				output.WriteSpace();
 				if (DisassemblerHelpers.MustEscape(nameSpace))
-					output.Write(DisassemblerHelpers.Escape(nameSpace), TextTokenType.NamespacePart);
+					output.Write(DisassemblerHelpers.Escape(nameSpace), TextTokenKind.NamespacePart);
 				else
 					DisassemblerHelpers.WriteNamespace(output, nameSpace);
 				OpenBlock(false);
@@ -1535,92 +1556,92 @@ namespace ICSharpCode.Decompiler.Disassembler
 		
 		public void WriteAssemblyHeader(AssemblyDef asm)
 		{
-			output.Write(".assembly", TextTokenType.ILDirective);
+			output.Write(".assembly", TextTokenKind.ILDirective);
 			output.WriteSpace();
 			if (asm.IsContentTypeWindowsRuntime) {
-				output.Write("windowsruntime", TextTokenType.Keyword);
+				output.Write("windowsruntime", TextTokenKind.Keyword);
 				output.WriteSpace();
 			}
-			output.Write(DisassemblerHelpers.Escape(asm.Name), TextTokenType.Text);
+			output.Write(DisassemblerHelpers.Escape(asm.Name), TextTokenKind.Text);
 			OpenBlock(false);
 			WriteAttributes(asm.CustomAttributes);
 			WriteSecurityDeclarations(asm);
 			if (asm.PublicKey != null && !asm.PublicKey.IsNullOrEmpty) {
-				output.Write(".publickey", TextTokenType.ILDirective);
+				output.Write(".publickey", TextTokenKind.ILDirective);
 				output.WriteSpace();
-				output.Write('=', TextTokenType.Operator);
+				output.Write("=", TextTokenKind.Operator);
 				output.WriteSpace();
 				WriteBlob(asm.PublicKey.Data);
 				output.WriteLine();
 			}
 			if (asm.HashAlgorithm != AssemblyHashAlgorithm.None) {
-				output.Write(".hash", TextTokenType.ILDirective);
+				output.Write(".hash", TextTokenKind.ILDirective);
 				output.WriteSpace();
-				output.Write("algorithm", TextTokenType.Keyword);
+				output.Write("algorithm", TextTokenKind.Keyword);
 				output.WriteSpace();
-				output.Write(string.Format("0x{0:x8}", (uint)asm.HashAlgorithm), TextTokenType.Number);
+				output.Write(string.Format("0x{0:x8}", (uint)asm.HashAlgorithm), TextTokenKind.Number);
 				if (asm.HashAlgorithm == AssemblyHashAlgorithm.SHA1) {
 					output.WriteSpace();
-					output.Write("// SHA1", TextTokenType.Comment);
+					output.Write("// SHA1", TextTokenKind.Comment);
 				}
 				output.WriteLine();
 			}
 			Version v = asm.Version;
 			if (v != null) {
-				output.Write(".ver", TextTokenType.ILDirective);
+				output.Write(".ver", TextTokenKind.ILDirective);
 				output.WriteSpace();
-				output.Write(string.Format("{0}", v.Major), TextTokenType.Number);
-				output.Write(':', TextTokenType.Operator);
-				output.Write(string.Format("{0}", v.Minor), TextTokenType.Number);
-				output.Write(':', TextTokenType.Operator);
-				output.Write(string.Format("{0}", v.Build), TextTokenType.Number);
-				output.Write(':', TextTokenType.Operator);
-				output.WriteLine(string.Format("{0}", v.Revision), TextTokenType.Number);
+				output.Write(string.Format("{0}", v.Major), TextTokenKind.Number);
+				output.Write(":", TextTokenKind.Operator);
+				output.Write(string.Format("{0}", v.Minor), TextTokenKind.Number);
+				output.Write(":", TextTokenKind.Operator);
+				output.Write(string.Format("{0}", v.Build), TextTokenKind.Number);
+				output.Write(":", TextTokenKind.Operator);
+				output.WriteLine(string.Format("{0}", v.Revision), TextTokenKind.Number);
 			}
 			CloseBlock();
 		}
 		
-		public void WriteAssemblyReferences(ModuleDefMD module)
+		public void WriteAssemblyReferences(ModuleDef module)
 		{
 			if (module == null)
 				return;
 			foreach (var mref in module.GetModuleRefs()) {
-				output.Write(".module", TextTokenType.ILDirective);
+				output.Write(".module", TextTokenKind.ILDirective);
 				output.WriteSpace();
-				output.Write("extern", TextTokenType.Keyword);
+				output.Write("extern", TextTokenKind.Keyword);
 				output.WriteSpace();
-				output.WriteLine(DisassemblerHelpers.Escape(mref.Name), TextTokenType.Text);
+				output.WriteLine(DisassemblerHelpers.Escape(mref.Name), TextTokenKind.Text);
 			}
 			foreach (var aref in module.GetAssemblyRefs()) {
 				AddTokenComment(aref);
-				output.Write(".assembly", TextTokenType.ILDirective);
+				output.Write(".assembly", TextTokenKind.ILDirective);
 				output.WriteSpace();
-				output.Write("extern", TextTokenType.Keyword);
+				output.Write("extern", TextTokenKind.Keyword);
 				output.WriteSpace();
 				if (aref.IsContentTypeWindowsRuntime) {
-					output.Write("windowsruntime", TextTokenType.Keyword);
+					output.Write("windowsruntime", TextTokenKind.Keyword);
 					output.WriteSpace();
 				}
-				output.Write(DisassemblerHelpers.Escape(aref.Name), TextTokenType.Text);
+				output.Write(DisassemblerHelpers.Escape(aref.Name), TextTokenKind.Text);
 				OpenBlock(false);
 				if (!PublicKeyBase.IsNullOrEmpty2(aref.PublicKeyOrToken)) {
-					output.Write(".publickeytoken", TextTokenType.ILDirective);
+					output.Write(".publickeytoken", TextTokenKind.ILDirective);
 					output.WriteSpace();
-					output.Write('=', TextTokenType.Operator);
+					output.Write("=", TextTokenKind.Operator);
 					output.WriteSpace();
 					WriteBlob(aref.PublicKeyOrToken.Token.Data);
 					output.WriteLine();
 				}
 				if (aref.Version != null) {
-					output.Write(".ver", TextTokenType.ILDirective);
+					output.Write(".ver", TextTokenKind.ILDirective);
 					output.WriteSpace();
-					output.Write(string.Format("{0}", aref.Version.Major), TextTokenType.Number);
-					output.Write(':', TextTokenType.Operator);
-					output.Write(string.Format("{0}", aref.Version.Minor), TextTokenType.Number);
-					output.Write(':', TextTokenType.Operator);
-					output.Write(string.Format("{0}", aref.Version.Build), TextTokenType.Number);
-					output.Write(':', TextTokenType.Operator);
-					output.WriteLine(string.Format("{0}", aref.Version.Revision), TextTokenType.Number);
+					output.Write(string.Format("{0}", aref.Version.Major), TextTokenKind.Number);
+					output.Write(":", TextTokenKind.Operator);
+					output.Write(string.Format("{0}", aref.Version.Minor), TextTokenKind.Number);
+					output.Write(":", TextTokenKind.Operator);
+					output.Write(string.Format("{0}", aref.Version.Build), TextTokenKind.Number);
+					output.Write(":", TextTokenKind.Operator);
+					output.WriteLine(string.Format("{0}", aref.Version.Revision), TextTokenKind.Number);
 				}
 				CloseBlock();
 			}
@@ -1631,45 +1652,45 @@ namespace ICSharpCode.Decompiler.Disassembler
 			if (module.HasExportedTypes) {
 				foreach (ExportedType exportedType in module.ExportedTypes) {
 					AddTokenComment(exportedType);
-					output.Write(".class", TextTokenType.ILDirective);
+					output.Write(".class", TextTokenKind.ILDirective);
 					output.WriteSpace();
-					output.Write("extern", TextTokenType.Keyword);
+					output.Write("extern", TextTokenKind.Keyword);
 					output.WriteSpace();
 					if (exportedType.IsForwarder) {
-						output.Write("forwarder", TextTokenType.Keyword);
+						output.Write("forwarder", TextTokenKind.Keyword);
 						output.WriteSpace();
 					}
-					output.Write(exportedType.DeclaringType != null ? exportedType.TypeName.String : exportedType.FullName, TextTokenHelper.GetTextTokenType(exportedType));
+					output.Write(exportedType.DeclaringType != null ? exportedType.TypeName.String : exportedType.FullName, TextTokenKindUtils.GetTextTokenType(exportedType));
 					OpenBlock(false);
 					if (exportedType.DeclaringType != null) {
-						output.Write(".class", TextTokenType.ILDirective);
+						output.Write(".class", TextTokenKind.ILDirective);
 						output.WriteSpace();
-						output.Write("extern", TextTokenType.Keyword);
+						output.Write("extern", TextTokenKind.Keyword);
 						output.WriteSpace();
-						output.WriteLine(DisassemblerHelpers.Escape(exportedType.DeclaringType.FullName), TextTokenHelper.GetTextTokenType(exportedType.DeclaringType));
+						output.WriteLine(DisassemblerHelpers.Escape(exportedType.DeclaringType.FullName), TextTokenKindUtils.GetTextTokenType(exportedType.DeclaringType));
 					}
 					else {
-						output.Write(".assembly", TextTokenType.ILDirective);
+						output.Write(".assembly", TextTokenKind.ILDirective);
 						output.WriteSpace();
-						output.Write("extern", TextTokenType.Keyword);
+						output.Write("extern", TextTokenKind.Keyword);
 						output.WriteSpace();
-						output.WriteLine(DisassemblerHelpers.Escape(exportedType.Scope.GetScopeName()), TextTokenType.Text);
+						output.WriteLine(DisassemblerHelpers.Escape(exportedType.Scope.GetScopeName()), TextTokenKind.Text);
 					}
 					CloseBlock();
 				}
 			}
 			
-			output.Write(".module", TextTokenType.ILDirective);
+			output.Write(".module", TextTokenKind.ILDirective);
 			output.WriteSpace();
-			output.WriteLine(module.Name, TextTokenType.Text);
+			output.WriteLine(module.Name, TextTokenKind.Text);
 			if (module.Mvid.HasValue)
-				output.WriteLine(string.Format("// MVID: {0}", module.Mvid.Value.ToString("B").ToUpperInvariant()), TextTokenType.Comment);
+				output.WriteLine(string.Format("// MVID: {0}", module.Mvid.Value.ToString("B").ToUpperInvariant()), TextTokenKind.Comment);
 			// TODO: imagebase, file alignment, stackreserve, subsystem
-			output.Write(".corflags", TextTokenType.ILDirective);
+			output.Write(".corflags", TextTokenKind.ILDirective);
 			output.WriteSpace();
-			output.Write(string.Format("0x{0:x}", module.Cor20HeaderFlags), TextTokenType.Number);
+			output.Write(string.Format("0x{0:x}", module.Cor20HeaderFlags), TextTokenKind.Number);
 			output.WriteSpace();
-			output.WriteLine(string.Format("// {0}", module.Cor20HeaderFlags.ToString()), TextTokenType.Comment);
+			output.WriteLine(string.Format("// {0}", module.Cor20HeaderFlags.ToString()), TextTokenKind.Comment);
 			
 			WriteAttributes(module.CustomAttributes);
 		}

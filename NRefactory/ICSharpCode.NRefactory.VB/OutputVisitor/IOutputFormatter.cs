@@ -1,11 +1,9 @@
 ﻿// Copyright (c) AlphaSierraPapa for the SharpDevelop Team (for details please see \doc\copyright.txt)
 // This code is distributed under MIT X11 license (for details please see \doc\license.txt)
 
-using System;
-using System.Collections.Generic;
+using dnSpy.Decompiler.Shared;
 
-namespace ICSharpCode.NRefactory.VB
-{
+namespace ICSharpCode.NRefactory.VB {
 	/// <summary>
 	/// Output formatter for the Output visitor.
 	/// </summary>
@@ -19,7 +17,7 @@ namespace ICSharpCode.NRefactory.VB
 		/// If the identifier conflicts with a keyword, the output visitor will
 		/// call <c>WriteToken("[")</c> before and <c>WriteToken("]")</c> after calling WriteIdentifier().
 		/// </summary>
-		void WriteIdentifier(string identifier, TextTokenType tokenType);
+		void WriteIdentifier(string identifier, TextTokenKind tokenKind);
 		
 		/// <summary>
 		/// Writes a keyword to the output.
@@ -29,7 +27,7 @@ namespace ICSharpCode.NRefactory.VB
 		/// <summary>
 		/// Writes a token to the output.
 		/// </summary>
-		void WriteToken(string token, TextTokenType tokenType);
+		void WriteToken(string token, TextTokenKind tokenKind);
 		void Space();
 		
 		void Indent();
@@ -38,9 +36,6 @@ namespace ICSharpCode.NRefactory.VB
 		void NewLine();
 		
 		void WriteComment(bool isDocumentation, string content);
-		
-		void MarkFoldStart();
-		void MarkFoldEnd();
 
 		void DebugStart(AstNode node);
 		void DebugHidden(object hiddenILRanges);

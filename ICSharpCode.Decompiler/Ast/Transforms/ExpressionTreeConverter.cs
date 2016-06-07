@@ -21,16 +21,16 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
+using System.Text;
+using dnlib.DotNet;
+using dnSpy.Decompiler.Shared;
 using ICSharpCode.Decompiler.ILAst;
-using ICSharpCode.NRefactory;
 using ICSharpCode.NRefactory.CSharp;
 using ICSharpCode.NRefactory.PatternMatching;
-using dnlib.DotNet;
 
 //TODO: Verify that no ILRanges have been removed from this file
 
-namespace ICSharpCode.Decompiler.Ast.Transforms
-{
+namespace ICSharpCode.Decompiler.Ast.Transforms {
 	public class ExpressionTreeConverter
 	{
 		#region static TryConvert method
@@ -43,22 +43,24 @@ namespace ICSharpCode.Decompiler.Ast.Transforms
 			return false;
 		}
 		
-		public static Expression TryConvert(DecompilerContext context, Expression expr)
+		public static Expression TryConvert(DecompilerContext context, Expression expr, StringBuilder sb)
 		{
-			Expression converted = new ExpressionTreeConverter(context).Convert(expr);
+			Expression converted = new ExpressionTreeConverter(context, sb).Convert(expr);
 			if (converted != null) {
 				converted.AddAnnotation(new ExpressionTreeLambdaAnnotation());
 			}
 			return converted;
 		}
 		#endregion
-		
+
 		readonly DecompilerContext context;
 		Stack<LambdaExpression> activeLambdas = new Stack<LambdaExpression>();
-		
-		private ExpressionTreeConverter(DecompilerContext context)
+		readonly StringBuilder stringBuilder;
+
+		private ExpressionTreeConverter(DecompilerContext context, StringBuilder sb)
 		{
 			this.context = context;
+			this.stringBuilder = sb;
 		}
 		
 		#region Main Convert method
@@ -204,7 +206,7 @@ namespace ICSharpCode.Decompiler.Ast.Transforms
 					foreach (LambdaExpression lambda in activeLambdas) {
 						foreach (ParameterDeclaration p in lambda.Parameters) {
 							if (p.Annotation<ILVariable>() == v)
-								return IdentifierExpression.Create(p.Name, v.IsParameter ? TextTokenType.Parameter : TextTokenType.Local).WithAnnotation(v);
+								return IdentifierExpression.Create(p.Name, v.IsParameter ? TextTokenKind.Parameter : TextTokenKind.Local).WithAnnotation(v);
 						}
 					}
 				}
@@ -257,10 +259,10 @@ namespace ICSharpCode.Decompiler.Ast.Transforms
 		#region Convert Field
 		static readonly Expression getFieldFromHandlePattern =
 			new TypePattern(typeof(FieldInfo)).ToType().Invoke2(
-				TextTokenType.StaticMethod,
+				TextTokenKind.StaticMethod,
 				"GetFieldFromHandle",
-				new LdTokenPattern("field").ToExpression().Member("FieldHandle", TextTokenType.InstanceProperty),
-				new OptionalNode(new TypeOfExpression(new AnyNode("declaringType")).Member("TypeHandle", TextTokenType.InstanceProperty))
+				new LdTokenPattern("field").ToExpression().Member("FieldHandle", TextTokenKind.InstanceProperty),
+				new OptionalNode(new TypeOfExpression(new AnyNode("declaringType")).Member("TypeHandle", TextTokenKind.InstanceProperty))
 			);
 		
 		Expression ConvertField(InvocationExpression invocation)
@@ -283,7 +285,7 @@ namespace ICSharpCode.Decompiler.Ast.Transforms
 				if (m.Has("declaringType"))
 					convertedTarget = new TypeReferenceExpression(m.Get<AstType>("declaringType").Single().Clone());
 				else
-					convertedTarget = new TypeReferenceExpression(AstBuilder.ConvertType(fr.DeclaringType));
+					convertedTarget = new TypeReferenceExpression(AstBuilder.ConvertType(fr.DeclaringType, stringBuilder));
 			} else {
 				convertedTarget = Convert(target);
 				if (convertedTarget == null)
@@ -297,10 +299,10 @@ namespace ICSharpCode.Decompiler.Ast.Transforms
 		#region Convert Property
 		static readonly Expression getMethodFromHandlePattern =
 			new TypePattern(typeof(MethodBase)).ToType().Invoke2(
-				TextTokenType.StaticMethod,
+				TextTokenKind.StaticMethod,
 				"GetMethodFromHandle",
-				new LdTokenPattern("method").ToExpression().Member("MethodHandle", TextTokenType.InstanceProperty),
-				new OptionalNode(new TypeOfExpression(new AnyNode("declaringType")).Member("TypeHandle", TextTokenType.InstanceProperty))
+				new LdTokenPattern("method").ToExpression().Member("MethodHandle", TextTokenKind.InstanceProperty),
+				new OptionalNode(new TypeOfExpression(new AnyNode("declaringType")).Member("TypeHandle", TextTokenKind.InstanceProperty))
 			).CastTo(new TypePattern(typeof(MethodInfo)));
 		
 		Expression ConvertProperty(InvocationExpression invocation)
@@ -322,14 +324,14 @@ namespace ICSharpCode.Decompiler.Ast.Transforms
 				if (m.Has("declaringType"))
 					convertedTarget = new TypeReferenceExpression(m.Get<AstType>("declaringType").Single().Clone());
 				else
-					convertedTarget = new TypeReferenceExpression(AstBuilder.ConvertType(mr.DeclaringType));
+					convertedTarget = new TypeReferenceExpression(AstBuilder.ConvertType(mr.DeclaringType, stringBuilder));
 			} else {
 				convertedTarget = Convert(target);
 				if (convertedTarget == null)
 					return null;
 			}
 			
-			return convertedTarget.Member(GetPropertyName(mr), mr.MethodSig == null || mr.MethodSig.HasThis ? TextTokenType.InstanceProperty : TextTokenType.StaticProperty).WithAnnotation(mr);
+			return convertedTarget.Member(GetPropertyName(mr), mr.MethodSig == null || mr.MethodSig.HasThis ? TextTokenKind.InstanceProperty : TextTokenKind.StaticProperty).WithAnnotation(mr);
 		}
 		
 		string GetPropertyName(IMethod accessor)
@@ -372,7 +374,7 @@ namespace ICSharpCode.Decompiler.Ast.Transforms
 				if (m.Has("declaringType"))
 					convertedTarget = new TypeReferenceExpression(m.Get<AstType>("declaringType").Single().Clone());
 				else
-					convertedTarget = new TypeReferenceExpression(AstBuilder.ConvertType(mr.DeclaringType));
+					convertedTarget = new TypeReferenceExpression(AstBuilder.ConvertType(mr.DeclaringType, stringBuilder));
 			} else {
 				convertedTarget = Convert(target);
 				if (convertedTarget == null)
@@ -383,7 +385,7 @@ namespace ICSharpCode.Decompiler.Ast.Transforms
 			MethodSpec gim = mr as MethodSpec;
 			if (gim != null && gim.GenericInstMethodSig != null) {
 				foreach (TypeSig tr in gim.GenericInstMethodSig.GenericArguments) {
-					mre.TypeArguments.Add(AstBuilder.ConvertType(tr));
+					mre.TypeArguments.Add(AstBuilder.ConvertType(tr, stringBuilder));
 				}
 			}
 			IList<Expression> arguments = null;
@@ -523,10 +525,10 @@ namespace ICSharpCode.Decompiler.Ast.Transforms
 		#region Convert New Object
 		static readonly Expression newObjectCtorPattern = new TypePattern(typeof(MethodBase)).ToType().Invoke2
 			(
-				TextTokenType.StaticMethod,
+				TextTokenKind.StaticMethod,
 				"GetMethodFromHandle",
-				new LdTokenPattern("ctor").ToExpression().Member("MethodHandle", TextTokenType.InstanceProperty),
-				new OptionalNode(new TypeOfExpression(new AnyNode("declaringType")).Member("TypeHandle", TextTokenType.InstanceProperty))
+				new LdTokenPattern("ctor").ToExpression().Member("MethodHandle", TextTokenKind.InstanceProperty),
+				new OptionalNode(new TypeOfExpression(new AnyNode("declaringType")).Member("TypeHandle", TextTokenKind.InstanceProperty))
 			).CastTo(new TypePattern(typeof(ConstructorInfo)));
 		
 		Expression ConvertNewObject(InvocationExpression invocation)
@@ -548,7 +550,7 @@ namespace ICSharpCode.Decompiler.Ast.Transforms
 				declaringTypeNode = m.Get<AstType>("declaringType").Single().Clone();
 				declaringType = declaringTypeNode.Annotation<ITypeDefOrRef>();
 			} else {
-				declaringTypeNode = AstBuilder.ConvertType(ctor.DeclaringType);
+				declaringTypeNode = AstBuilder.ConvertType(ctor.DeclaringType, stringBuilder);
 				declaringType = ctor.DeclaringType;
 			}
 			if (declaringTypeNode == null)
@@ -668,14 +670,14 @@ namespace ICSharpCode.Decompiler.Ast.Transforms
 				Expression bindingValue = bindingInvocation.Arguments.ElementAt(1);
 				
 				string memberName;
-				TextTokenType tokenType;
+				TextTokenKind tokenKind;
 				Match m2 = getMethodFromHandlePattern.Match(bindingTarget);
 				if (m2.Success) {
 					IMethod setter = m2.Get<AstNode>("method").Single().Annotation<IMethod>();
 					if (setter == null)
 						return null;
 					memberName = GetPropertyName(setter);
-					tokenType = setter.MethodSig == null || setter.MethodSig.HasThis ? TextTokenType.InstanceProperty : TextTokenType.StaticProperty;
+					tokenKind = setter.MethodSig == null || setter.MethodSig.HasThis ? TextTokenKind.InstanceProperty : TextTokenKind.StaticProperty;
 				} else {
 					return null;
 				}
@@ -696,7 +698,7 @@ namespace ICSharpCode.Decompiler.Ast.Transforms
 				}
 				if (convertedValue == null)
 					return null;
-				result.Elements.Add(new NamedExpression(memberName, convertedValue, tokenType));
+				result.Elements.Add(new NamedExpression(memberName, convertedValue, tokenKind));
 			}
 			return result;
 		}
@@ -828,7 +830,7 @@ namespace ICSharpCode.Decompiler.Ast.Transforms
 			
 			Expression targetConverted = Convert(invocation.Arguments.Single());
 			if (targetConverted != null)
-				return targetConverted.Member("Length", TextTokenType.InstanceProperty).WithAnnotation(Create_SystemArray_get_Length());
+				return targetConverted.Member("Length", TextTokenKind.InstanceProperty).WithAnnotation(Create_SystemArray_get_Length());
 			else
 				return null;
 		}
